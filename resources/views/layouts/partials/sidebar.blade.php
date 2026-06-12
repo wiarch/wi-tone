@@ -40,6 +40,14 @@
                     <span class="flex h-5 w-5 shrink-0 items-center justify-center text-base opacity-80">🎸</span>
                     Acordes guitarra
                 </a>
+                <a href="{{ route('tools.tuner') }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $navItem(request()->routeIs('tools.tuner')) }}">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center text-base opacity-80">🎯</span>
+                    Afinador
+                </a>
+                <a href="{{ route('tools.metronome') }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $navItem(request()->routeIs('tools.metronome')) }}">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center text-base opacity-80">⏱</span>
+                    Metrónomo
+                </a>
                 <a href="{{ route('tools.circle-of-fifths') }}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $navItem(request()->routeIs('tools.circle-of-fifths')) }}">
                     <span class="flex h-5 w-5 shrink-0 items-center justify-center text-base opacity-80">⭕</span>
                     Círculo de quintas

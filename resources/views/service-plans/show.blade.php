@@ -89,6 +89,4 @@
             @endif
         </x-admin-card>
     </div>
-
-    <x-musician-tools-panel />
 </x-app-layout>

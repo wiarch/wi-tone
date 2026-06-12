@@ -578,14 +578,22 @@ function initCircleOfFifths(root) {
 }
 
 function initMusicianTools() {
-    const root = document.querySelector('[data-musician-tools]');
-    if (!root) {
-        return;
+    const panel = document.querySelector('[data-musician-tools]');
+    if (panel) {
+        initTuner(panel);
+        initMetronome(panel);
+        initCircleOfFifths(panel);
     }
 
-    initTuner(root);
-    initMetronome(root);
-    initCircleOfFifths(root);
+    const tunerPage = document.querySelector('[data-tuner-page]');
+    if (tunerPage) {
+        initTuner(tunerPage);
+    }
+
+    const metronomePage = document.querySelector('[data-metronome-page]');
+    if (metronomePage) {
+        initMetronome(metronomePage);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', initMusicianTools);

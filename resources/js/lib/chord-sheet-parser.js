@@ -8,6 +8,16 @@ const CHORD_TOKEN =
 
 const SECTION_RE = /^\s*\[[^\]]+\]\s*$/;
 const LYRIC_LETTER_RE = /[a-zA-ZàáâãäåèéêëìíîïòóôõöùúûüñçÀÁÂÃÄÅÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÑÇ]/;
+const CHORD_NAME_RE =
+    /^[A-G][#b♯♭]?(?:(?:maj|min|dim|aug|sus[24]?|add\d+)?(?:m|M)?\d*|\d+)*(?:\([^)]+\))?(?:\/[A-G][#b♯♭]?)?$/i;
+
+export function isChordBracketName(name) {
+    return CHORD_NAME_RE.test(String(name).trim());
+}
+
+export function sectionLabel(raw) {
+    return String(raw).trim().replace(/^\[|\]$/g, '');
+}
 
 export function extractChordsFromLine(line) {
     const chords = [];
@@ -21,6 +31,33 @@ export function extractChordsFromLine(line) {
     return chords;
 }
 
+function stripSectionPrefix(line) {
+    const match = line.match(/^(\s*)(\[[^\]]+\])\s*/);
+    if (!match) {
+        return { prefix: '', body: line, sectionTag: null, prefixEnd: 0 };
+    }
+
+    return {
+        prefix: match[1] ?? '',
+        sectionTag: match[2],
+        body: line.slice(match[0].length),
+        prefixEnd: match[0].length,
+    };
+}
+
+function chordLineForDisplay(line) {
+    const { sectionTag, body } = stripSectionPrefix(line);
+    return sectionTag ? body : line;
+}
+
+function chordLineRemainder(line) {
+    const { body } = stripSectionPrefix(line);
+
+    return body
+        .replace(new RegExp(CHORD_TOKEN.source, 'gi'), '')
+        .replace(/[\s/|.:·,;]/g, '');
+}
+
 export function isChordLine(line) {
     const trimmed = line.trim();
     if (!trimmed) {
@@ -32,11 +69,7 @@ export function isChordLine(line) {
         return false;
     }
 
-    const remainder = line
-        .replace(new RegExp(CHORD_TOKEN.source, 'gi'), '')
-        .replace(/[\s/|]/g, '');
-
-    return remainder.length === 0;
+    return chordLineRemainder(line).length === 0;
 }
 
 export function isLyricLine(line) {
@@ -54,47 +87,7 @@ export function isLyricLine(line) {
     return LYRIC_LETTER_RE.test(line);
 }
 
-function wordStarts(lyric) {
-    const starts = [];
-    const re = /\S+/g;
-    let match;
-
-    while ((match = re.exec(lyric)) !== null) {
-        starts.push(match.index);
-    }
-
-    return starts;
-}
-
-function snapToWord(pos, starts) {
-    if (!starts.length) {
-        return Math.max(0, pos);
-    }
-
-    let best = starts[0];
-    for (const index of starts) {
-        if (index <= pos) {
-            best = index;
-        } else {
-            break;
-        }
-    }
-
-    return best;
-}
-
-function parseChordLyricPair(chordLine, lyricLine) {
-    const chordLead = chordLine.match(/^\s*/)?.[0]?.length ?? 0;
-    const starts = wordStarts(lyricLine);
-
-    const chords = extractChordsFromLine(chordLine).map((chord) => {
-        const rawPos = Math.max(0, chord.pos - chordLead);
-        return {
-            pos: snapToWord(rawPos, starts),
-            name: chord.name,
-        };
-    });
-
+function dedupeChords(chords) {
     const deduped = [];
     const seen = new Set();
 
@@ -106,15 +99,177 @@ function parseChordLyricPair(chordLine, lyricLine) {
         }
     }
 
+    return deduped.sort((a, b) => a.pos - b.pos);
+}
+
+function chordLineToSpacerLyrics(chordLine) {
+    return chordLine
+        .replace(new RegExp(CHORD_TOKEN.source, 'gi'), (match) => ' '.repeat(match.length))
+        .replace(/[.:·,;]/g, ' ');
+}
+
+function alignChordPositions(chordLine, lyricLine) {
+    const chordLead = chordLine.match(/^\s*/)?.[0]?.length ?? 0;
+    const lyricLead = lyricLine.match(/^\s*/)?.[0]?.length ?? 0;
+    const shift = chordLead - lyricLead;
+
+    return extractChordsFromLine(chordLine).map((chord) => ({
+        pos: Math.max(0, chord.pos - shift),
+        name: chord.name,
+    }));
+}
+
+function parseChordLyricPair(chordLine, lyricLine) {
     return {
         lyrics: lyricLine,
-        chords: deduped.sort((a, b) => a.pos - b.pos),
+        chords: dedupeChords(alignChordPositions(chordLine, lyricLine)),
+    };
+}
+
+function parseChordOnlyLine(chordLine) {
+    const chords = extractChordsFromLine(chordLine).map((chord) => ({
+        pos: chord.pos,
+        name: chord.name,
+    }));
+
+    return {
+        lyrics: chordLineToSpacerLyrics(chordLine),
+        chords: dedupeChords(chords),
     };
 }
 
 /**
  * @returns {Array<{lyrics: string, chords: Array<{pos: number, name: string}>}>}
  */
+/**
+ * Bloques visuales estilo UG (línea de acordes + letra). Omite secciones [Intro], etc.
+ * @returns {Array<{type: 'pair', chordLine: string, lyricLine: string} | {type: 'chords', chordLine: string}>}
+ */
+export function parseChordSheetBlocks(text) {
+    const rawLines = text.replace(/\r\n/g, '\n').split('\n');
+    const blocks = [];
+    let index = 0;
+
+    while (index < rawLines.length) {
+        const line = rawLines[index];
+
+        if (!line.trim()) {
+            index++;
+            continue;
+        }
+
+        if (SECTION_RE.test(line.trim())) {
+            index++;
+            continue;
+        }
+
+        if (isChordLine(line)) {
+            const next = rawLines[index + 1] ?? '';
+
+            if (isLyricLine(next) && !isChordLine(next)) {
+                blocks.push({ type: 'pair', chordLine: chordLineForDisplay(line), lyricLine: next });
+                index += 2;
+                continue;
+            }
+
+            blocks.push({ type: 'chords', chordLine: chordLineForDisplay(line) });
+            index++;
+            continue;
+        }
+
+        index++;
+    }
+
+    return blocks;
+}
+
+export function buildChordLineFromChords(chords, minLength = 0) {
+    if (!chords.length) {
+        return '';
+    }
+
+    const maxEnd = Math.max(minLength, ...chords.map((c) => c.pos + c.name.length));
+    const chars = Array(maxEnd).fill(' ');
+
+    for (const { pos, name } of [...chords].sort((a, b) => a.pos - b.pos)) {
+        for (let i = 0; i < name.length; i++) {
+            const idx = pos + i;
+            if (idx >= 0 && idx < chars.length) {
+                chars[idx] = name[i];
+            }
+        }
+    }
+
+    let end = chars.length;
+    while (end > 0 && chars[end - 1] === ' ') {
+        end--;
+    }
+
+    return chars.slice(0, end).join('');
+}
+
+export function rebuildChordLine(lyrics, chords) {
+    if (!chords.length) {
+        return '';
+    }
+
+    const maxEnd = Math.max(lyrics.length, ...chords.map((c) => c.pos + c.name.length));
+    const chars = Array(maxEnd).fill(' ');
+
+    for (const { pos, name } of [...chords].sort((a, b) => a.pos - b.pos)) {
+        for (let i = 0; i < name.length; i++) {
+            const idx = pos + i;
+            if (idx >= 0 && idx < chars.length) {
+                chars[idx] = name[i];
+            }
+        }
+    }
+
+    let end = chars.length;
+    while (end > 0 && chars[end - 1] === ' ') {
+        end--;
+    }
+
+    return chars.slice(0, end).join('');
+}
+
+export function blocksToChordPro(blocks) {
+    const parsed = blocks.flatMap((block) => {
+        if (block.type === 'pair') {
+            return [parseChordLyricPair(block.chordLine, block.lyricLine)];
+        }
+        if (block.type === 'chords') {
+            return [parseChordOnlyLine(block.chordLine)];
+        }
+        return [];
+    });
+
+    return parsedLinesToChordPro(parsed);
+}
+
+export function blocksToLyricsText(blocks) {
+    return blocks
+        .filter((b) => b.type === 'pair')
+        .map((b) => b.lyricLine)
+        .join('\n');
+}
+
+export function collectChordsFromBlocks(blocks) {
+    const names = new Set();
+    const re = new RegExp(CHORD_TOKEN.source, 'gi');
+
+    for (const block of blocks) {
+        const line = block.type === 'pair' ? block.chordLine : block.chordLine;
+        let match;
+        while ((match = re.exec(line)) !== null) {
+            names.add(match[0]);
+        }
+        re.lastIndex = 0;
+    }
+
+    return names;
+}
+
 export function parseChordSheetPaste(text) {
     const rawLines = text.replace(/\r\n/g, '\n').split('\n');
     const output = [];
@@ -129,19 +284,21 @@ export function parseChordSheetPaste(text) {
         }
 
         if (SECTION_RE.test(line.trim())) {
-            output.push({ lyrics: line.trim(), chords: [] });
+            output.push({ lyrics: sectionLabel(line.trim()), chords: [] });
             index++;
             continue;
         }
 
-        if (index + 1 < rawLines.length && isChordLine(line) && isLyricLine(rawLines[index + 1])) {
-            output.push(parseChordLyricPair(line, rawLines[index + 1]));
-            index += 2;
-            continue;
-        }
+        if (isChordLine(line)) {
+            const next = rawLines[index + 1] ?? '';
 
-        if (line.includes('[') && line.includes(']')) {
-            output.push(parseInlineChordProLine(line));
+            if (isLyricLine(next) && !isChordLine(next)) {
+                output.push(parseChordLyricPair(line, next));
+                index += 2;
+                continue;
+            }
+
+            output.push(parseChordOnlyLine(line));
             index++;
             continue;
         }
@@ -153,38 +310,22 @@ export function parseChordSheetPaste(text) {
     return output;
 }
 
-function parseInlineChordProLine(line) {
-    const chords = [];
-    const lyricChars = [];
-    let i = 0;
-
-    while (i < line.length) {
-        if (line[i] === '[') {
-            const end = line.indexOf(']', i + 1);
-            if (end !== -1) {
-                chords.push({ pos: lyricChars.length, name: line.slice(i + 1, end) });
-                i = end + 1;
-                continue;
-            }
-        }
-        lyricChars.push(line[i]);
-        i++;
-    }
-
-    return { lyrics: lyricChars.join(''), chords };
-}
-
 export function detectChordSheetFormat(text) {
     const lines = text.replace(/\r\n/g, '\n').split('\n');
-    let pairs = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        if (isChordLine(lines[i])) {
+            return true;
+        }
+    }
 
     for (let i = 0; i < lines.length - 1; i++) {
         if (isChordLine(lines[i]) && isLyricLine(lines[i + 1])) {
-            pairs++;
+            return true;
         }
     }
 
-    return pairs >= 1;
+    return false;
 }
 
 export function parsedLinesToChordPro(parsedLines) {

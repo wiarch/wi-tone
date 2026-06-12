@@ -22,7 +22,7 @@
         </div>
         <div class="sm:col-span-1">
             <x-input-label for="key" value="Tono principal" class="text-slate-300" />
-            <x-text-input id="key" name="key" type="text" class="mt-1 block w-full admin-input" :value="old('key', $song?->key ?? '')" placeholder="Ej: G, D, Bm" required />
+            <x-text-input id="key" name="key" type="text" data-key-field class="mt-1 block w-full admin-input" :value="old('key', $song?->key ?? '')" placeholder="Ej: G, D, Bm" required />
             <x-input-error class="mt-2" :messages="$errors->get('key')" />
         </div>
     </div>
@@ -71,11 +71,41 @@
             <x-input-error class="mt-2" :messages="$errors->get('content')" />
         </div>
 
+        {{-- Transposición de tono --}}
+        <div class="border-b border-white/5 p-4 sm:p-5">
+            <p class="mb-3 text-sm text-slate-300">
+                Tono: <span data-transpose-display-key class="font-mono font-semibold text-amber-400">—</span>
+            </p>
+            <div class="rounded-xl border border-white/10 bg-[#0a0f1a] p-3">
+                <div class="mb-2 grid grid-cols-2 gap-2">
+                    <button type="button" data-transpose-half-down class="rounded-lg border border-white/10 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/5">−1/2 tono</button>
+                    <button type="button" data-transpose-half-up class="rounded-lg border border-white/10 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/5">+1/2 tono</button>
+                </div>
+                <div class="grid grid-cols-6 gap-1.5">
+                    @foreach (['A', 'Bb', 'B', 'C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab'] as $tone)
+                        <button
+                            type="button"
+                            data-transpose-key="{{ $tone }}"
+                            class="transpose-key-btn rounded-md border border-white/10 py-2 font-mono text-xs font-medium text-slate-400 transition hover:bg-white/5"
+                        >{{ $tone }}</button>
+                    @endforeach
+                </div>
+                <button
+                    type="button"
+                    data-transpose-reset
+                    class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/5"
+                >
+                    <span aria-hidden="true">↺</span> Restaurar
+                </button>
+            </div>
+            <p class="mt-2 text-xs text-slate-600">Pega el cifrado, asigna el tono y cambia la tonalidad — todos los acordes se actualizan.</p>
+        </div>
+
         {{-- Lienzo visual --}}
         <div class="p-4 sm:p-5">
             <div class="mb-3 flex items-center justify-between">
                 <h4 class="text-xs font-medium uppercase tracking-wider text-slate-500">Cifrado visual</h4>
-                <span class="text-xs text-slate-600">Arrastra un acorde sobre la palabra</span>
+                <span class="text-xs text-slate-600">Arrastra acordes en la línea ámbar · edita la letra abajo</span>
             </div>
             <div
                 data-visual-canvas

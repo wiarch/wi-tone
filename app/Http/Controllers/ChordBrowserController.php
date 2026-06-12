@@ -22,6 +22,16 @@ class ChordBrowserController extends Controller
         return view('tools.circle-of-fifths');
     }
 
+    public function tuner(): View
+    {
+        return view('tools.tuner');
+    }
+
+    public function metronome(): View
+    {
+        return view('tools.metronome');
+    }
+
     private function browser(string $instrument): View
     {
         $chords = Chord::query()

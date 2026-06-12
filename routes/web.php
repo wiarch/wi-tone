@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function () {
     Route::get('chords/guitar', [ChordBrowserController::class, 'guitar'])->name('chords.guitar');
     Route::get('chords/keyboard', [ChordBrowserController::class, 'keyboard'])->name('chords.keyboard');
     Route::get('tools/circle-of-fifths', [ChordBrowserController::class, 'circleOfFifths'])->name('tools.circle-of-fifths');
+    Route::get('tools/tuner', [ChordBrowserController::class, 'tuner'])->name('tools.tuner');
+    Route::get('tools/metronome', [ChordBrowserController::class, 'metronome'])->name('tools.metronome');
 
     Route::get('songs/{song}/export', [SongController::class, 'export'])->name('songs.export');
     Route::resource('songs', SongController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
