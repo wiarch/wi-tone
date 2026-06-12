@@ -12,6 +12,17 @@ use Illuminate\View\View;
 
 class ServicePlanController extends Controller
 {
+    public function index(): View
+    {
+        $servicePlans = auth()->user()
+            ->servicePlans()
+            ->withCount('songs')
+            ->orderByDesc('date')
+            ->paginate(15);
+
+        return view('service-plans.index', compact('servicePlans'));
+    }
+
     public function create(): View
     {
         return view('service-plans.create');

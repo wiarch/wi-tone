@@ -10,6 +10,16 @@ use Illuminate\View\View;
 
 class SongController extends Controller
 {
+    public function index(): View
+    {
+        $songs = auth()->user()
+            ->songs()
+            ->latest()
+            ->paginate(15);
+
+        return view('songs.index', compact('songs'));
+    }
+
     public function create(): View
     {
         return view('songs.create');
