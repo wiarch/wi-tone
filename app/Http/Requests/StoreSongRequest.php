@@ -20,8 +20,7 @@ class StoreSongRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'artist' => ['required', 'string', 'max:255'],
             'key' => ['required', 'string', 'max:10'],
-            'guitar_content' => ['nullable', 'string'],
-            'keyboard_content' => ['nullable', 'string'],
+            'content' => ['nullable', 'string'],
         ];
     }
 
@@ -34,8 +33,7 @@ class StoreSongRequest extends FormRequest
             'title' => 'título',
             'artist' => 'artista',
             'key' => 'tono',
-            'guitar_content' => 'cifrado de guitarra',
-            'keyboard_content' => 'cifrado de teclado',
+            'content' => 'letra y cifrado',
         ];
     }
 }

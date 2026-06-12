@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Song;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -13,6 +15,11 @@ class DashboardController extends Controller
 
         $songsCount = $user->songs()->count();
         $plansCount = $user->servicePlans()->count();
+        $repertoireCount = Song::count();
+        $upcomingPlansCount = $user->servicePlans()->whereDate('date', '>=', today())->count();
+        $setlistSongsCount = (int) DB::table('plan_song')
+            ->whereIn('service_plan_id', $user->servicePlans()->pluck('id'))
+            ->count();
 
         $upcomingPlan = $user->servicePlans()
             ->whereDate('date', '>=', today())
@@ -33,6 +40,9 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'songsCount',
             'plansCount',
+            'repertoireCount',
+            'upcomingPlansCount',
+            'setlistSongsCount',
             'upcomingPlan',
             'recentSongs',
             'recentPlans',

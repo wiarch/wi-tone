@@ -2,8 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-[x-cloak] {
-    display: none !important;
+@layer components {
+    .admin-input {
+        @apply rounded-xl border-white/10 bg-white/5 text-slate-200 shadow-sm placeholder-slate-500 focus:border-violet-500/50 focus:ring-violet-500/50;
+    }
+
+    .admin-form .text-red-600 {
+        @apply text-red-400;
+    }
+}
+
+/* Pagination dark */
+nav[role="navigation"] span,
+nav[role="navigation"] a {
+    @apply text-slate-400;
+}
+nav[role="navigation"] a:hover {
+    @apply text-violet-300;
+}
+nav[role="navigation"] span[aria-current="page"] span {
+    @apply bg-violet-600 text-white;
+}
+
+.chordpro-preview-chords {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.02em;
+}
+
+.chordpro-preview-lyrics {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.chordpro-sheet,
+.chordpro-chord-row,
+.chordpro-lyric-row {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+#chord-diagram-popover {
+    pointer-events: auto;
 }
 
 .chord-sheet {
@@ -12,38 +50,81 @@
     tab-size: 4;
 }
 
-body.song-stage-mode .min-h-screen {
-    background-color: #020617;
+body.song-stage-mode .sidebar-panel,
+body.song-stage-mode .admin-topbar,
+body.song-stage-mode .fab-menu,
+body.song-stage-mode .sidebar-backdrop,
+body.song-stage-mode .sidebar-toggle {
+    display: none;
 }
 
-body.song-stage-mode nav {
-    background-color: #0f172a;
-    border-color: rgb(255 255 255 / 0.1);
+body.song-stage-mode .lg\:pl-64 {
+    padding-left: 0;
 }
 
-body.song-stage-mode nav a,
-body.song-stage-mode nav button {
-    color: #cbd5e1;
+body.song-stage-mode main {
+    padding: 1rem;
 }
 
-body.song-stage-mode header {
-    background-color: #0f172a;
-    border-bottom: 1px solid rgb(255 255 255 / 0.1);
-    box-shadow: none;
+.song-performance .chordpro-sheet,
+.song-performance .chordpro-chord-row,
+.song-performance .chordpro-lyric-row {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
 }
 
-body.song-stage-mode .song-show-title {
-    color: #f1f5f9;
+.song-performance .chordpro-lyric-row {
+    line-height: 1.75;
 }
 
-body.song-stage-mode .song-show-meta {
-    color: #94a3b8;
+body.song-stage-mode .song-performance {
+    border-radius: 0;
+    border: none;
+    min-height: 100vh;
 }
 
-body.song-stage-mode .song-show-edit {
-    color: #a5b4fc;
+body.song-stage-mode .song-performance [data-chord-sheet] {
+    max-height: none;
 }
 
-body.song-stage-mode .song-show-edit:hover {
-    color: #c7d2fe;
+/* Export / print */
+.song-export .export-sheet,
+.song-export .export-chord-row,
+.song-export .export-lyric-row {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.song-export .export-section {
+    margin-top: 1rem;
+    margin-bottom: 0.35rem;
+}
+
+@media print {
+    @page {
+        margin: 1.2cm 1.5cm;
+    }
+
+    .song-export-body {
+        background: white !important;
+    }
+
+    .export-document {
+        max-width: none !important;
+        padding: 0 !important;
+    }
+
+    .export-sheet {
+        column-gap: 2rem;
+    }
+
+    .export-line,
+    .export-section,
+    .export-diagram-card {
+        break-inside: avoid;
+    }
+
+    .export-diagrams {
+        break-before: page;
+    }
 }

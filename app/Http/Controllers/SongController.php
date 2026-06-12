@@ -3,19 +3,33 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreSongRequest;
+use App\Models\Chord;
 use App\Models\Song;
+use App\Support\ChordProParser;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SongController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $query = $request->string('q')->trim();
+
         $songs = auth()->user()
             ->songs()
+            ->when($query->isNotEmpty(), function ($builder) use ($query) {
+                $term = '%'.$query->toString().'%';
+                $builder->where(function ($q) use ($term) {
+                    $q->where('title', 'like', $term)
+                        ->orWhere('artist', 'like', $term)
+                        ->orWhere('key', 'like', $term);
+                });
+            })
             ->latest()
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('songs.index', compact('songs'));
     }
@@ -42,13 +56,77 @@ class SongController extends Controller
             ->with('status', 'song-created');
     }
 
-    public function show(Song $song): View
+    public function show(Request $request, Song $song): View
     {
         $this->authorizeSong($song);
 
+        $data = $this->prepareSongDisplayData($song);
+        $viewMode = $request->query('view', 'guitar');
+        if (! in_array($viewMode, ['guitar', 'keyboard'], true)) {
+            $viewMode = 'guitar';
+        }
+
+        return view('songs.show', [
+            ...$data,
+            'viewMode' => $viewMode,
+            'stageMode' => $request->boolean('stage'),
+        ]);
+    }
+
+    public function export(Song $song): View
+    {
+        $this->authorizeSong($song);
+
+        return view('songs.export', $this->prepareSongDisplayData($song));
+    }
+
+    /**
+     * @return array{song: Song, content: string, parsedLines: array, diagramLibrary: array, songChordNames: array}
+     */
+    private function prepareSongDisplayData(Song $song): array
+    {
         $song->load('chords');
 
-        return view('songs.show', compact('song'));
+        $content = $song->chords->firstWhere('instrument', 'guitar')?->content
+            ?? $song->chords->firstWhere('instrument', 'keyboard')?->content
+            ?? '';
+
+        $parsedLines = $content !== '' ? ChordProParser::parse($content) : [];
+        $chordNames = $content !== '' ? ChordProParser::extractChordNames($content) : [];
+
+        $diagramLibrary = Chord::query()
+            ->whereIn('name', $chordNames)
+            ->with(['diagrams' => fn ($q) => $q->orderBy('variant_name')])
+            ->get()
+            ->mapWithKeys(fn (Chord $chord) => [
+                $chord->name => [
+                    'guitar' => $chord->diagrams
+                        ->where('instrument', 'guitar')
+                        ->values()
+                        ->map(fn ($d) => [
+                            'variant_name' => $d->variant_name,
+                            'representation' => $d->representation,
+                        ])
+                        ->all(),
+                    'keyboard' => $chord->diagrams
+                        ->where('instrument', 'keyboard')
+                        ->values()
+                        ->map(fn ($d) => [
+                            'variant_name' => $d->variant_name,
+                            'representation' => $d->representation,
+                        ])
+                        ->all(),
+                ],
+            ])
+            ->all();
+
+        return [
+            'song' => $song,
+            'content' => $content,
+            'parsedLines' => $parsedLines,
+            'diagramLibrary' => $diagramLibrary,
+            'songChordNames' => $chordNames,
+        ];
     }
 
     public function edit(Song $song): View
@@ -79,20 +157,15 @@ class SongController extends Controller
      */
     private function syncChords(Song $song, array $data): void
     {
-        $instruments = [
-            'guitar' => $data['guitar_content'] ?? null,
-            'keyboard' => $data['keyboard_content'] ?? null,
-        ];
+        $content = $data['content'] ?? null;
 
-        foreach ($instruments as $instrument => $content) {
-            if (filled($content)) {
-                $song->chords()->updateOrCreate(
-                    ['instrument' => $instrument],
-                    ['content' => $content]
-                );
-            } else {
-                $song->chords()->where('instrument', $instrument)->delete();
-            }
+        if (filled($content)) {
+            $song->chords()->updateOrCreate(
+                ['instrument' => 'guitar'],
+                ['content' => $content]
+            );
+        } else {
+            $song->chords()->delete();
         }
     }
 

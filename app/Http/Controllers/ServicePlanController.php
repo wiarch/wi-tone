@@ -39,20 +39,31 @@ class ServicePlanController extends Controller
             ->with('status', 'plan-created');
     }
 
-    public function show(ServicePlan $servicePlan): View
+    public function show(Request $request, ServicePlan $servicePlan): View
     {
         $this->authorizePlan($servicePlan);
 
         $servicePlan->load(['songs' => fn ($query) => $query->orderByPivot('order')]);
 
+        $search = $request->string('q')->trim();
+
         $availableSongs = Song::query()
             ->whereNotIn('id', $servicePlan->songs->pluck('id'))
+            ->when($search->isNotEmpty(), function ($query) use ($search) {
+                $term = '%'.$search->toString().'%';
+                $query->where(function ($q) use ($term) {
+                    $q->where('title', 'like', $term)
+                        ->orWhere('artist', 'like', $term)
+                        ->orWhere('key', 'like', $term);
+                });
+            })
             ->orderBy('title')
             ->get(['id', 'title', 'artist', 'key']);
 
         return view('service-plans.show', [
             'servicePlan' => $servicePlan,
             'availableSongs' => $availableSongs,
+            'search' => $search->toString(),
         ]);
     }
 

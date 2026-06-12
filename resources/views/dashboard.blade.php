@@ -1,161 +1,132 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div class="space-y-8">
+        {{-- Page header --}}
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Panel de administración
-                </h2>
-                <p class="text-sm text-gray-500 mt-1">Hola, {{ Auth::user()->name }}</p>
+                <h1 class="text-3xl font-bold text-white">Dashboard</h1>
+                <p class="mt-1 text-sm text-slate-500 capitalize">{{ now()->locale('es')->isoFormat('MMMM [de] YYYY') }}</p>
+                <p class="mt-2 text-sm text-slate-400">Vista general de tu repertorio y planes de dirección.</p>
             </div>
-            <span class="text-sm text-gray-400">{{ now()->format('d/m/Y') }}</span>
+            <div class="flex rounded-xl border border-white/10 bg-[#141c2e] p-1 text-sm">
+                <span class="rounded-lg bg-violet-600 px-4 py-2 font-medium text-white">Repertorio</span>
+                <span class="px-4 py-2 text-slate-500">Planes</span>
+            </div>
         </div>
-    </x-slot>
 
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
+        {{-- Stats row 1 --}}
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-white/5 bg-[#141c2e] p-5">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Mis canciones</p>
+                <p class="mt-2 text-3xl font-bold text-white">{{ $songsCount }}</p>
+                <p class="mt-2 text-xs text-slate-500">{{ $repertoireCount }} en el repertorio global</p>
+            </div>
+            <div class="rounded-2xl border border-white/5 bg-[#141c2e] p-5">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Planes de dirección</p>
+                <p class="mt-2 text-3xl font-bold text-emerald-400">{{ $plansCount }}</p>
+                <p class="mt-2 text-xs text-slate-500">{{ $upcomingPlansCount }} próximos</p>
+            </div>
+            <div class="rounded-2xl border border-white/5 bg-[#141c2e] p-5">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Canciones en setlists</p>
+                <p class="mt-2 text-3xl font-bold text-amber-400">{{ $setlistSongsCount }}</p>
+                <p class="mt-2 text-xs text-slate-500">En todos tus planes</p>
+            </div>
+            <div class="rounded-2xl border border-white/5 bg-[#141c2e] p-5">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Próximo servicio</p>
+                @if ($upcomingPlan)
+                    <p class="mt-2 text-xl font-bold text-white truncate">{{ $upcomingPlan->title }}</p>
+                    <p class="mt-2 text-xs text-violet-400">{{ $upcomingPlan->date->format('d/m/Y') }}</p>
+                @else
+                    <p class="mt-2 text-xl font-bold text-slate-600">—</p>
+                    <p class="mt-2 text-xs text-slate-500">Sin planes próximos</p>
+                @endif
+            </div>
+        </div>
 
-            {{-- Stats --}}
-            <div class="grid gap-4 sm:grid-cols-3">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.5.375a2.25 2.25 0 01-2.163-1.632L12.75 15v-3.75m0 0l-10.5-3m10.5 3l-10.5 3" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Mis canciones</p>
-                            <p class="text-2xl font-bold text-gray-900">{{ $songsCount }}</p>
-                        </div>
-                    </div>
+        {{-- Stats row 2 --}}
+        <div class="grid gap-4 sm:grid-cols-3">
+            <a href="{{ route('songs.create') }}" class="group rounded-2xl border border-white/5 bg-[#141c2e] p-5 transition hover:border-violet-500/30 hover:bg-violet-600/5">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Acción rápida</p>
+                <p class="mt-2 text-lg font-semibold text-violet-400 group-hover:text-violet-300">+ Nueva canción</p>
+            </a>
+            <a href="{{ route('service-plans.create') }}" class="group rounded-2xl border border-white/5 bg-[#141c2e] p-5 transition hover:border-emerald-500/30 hover:bg-emerald-600/5">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Acción rápida</p>
+                <p class="mt-2 text-lg font-semibold text-emerald-400 group-hover:text-emerald-300">+ Nuevo plan</p>
+            </a>
+            @if ($upcomingPlan)
+                <a href="{{ route('service-plans.show', $upcomingPlan) }}" class="group rounded-2xl border border-white/5 bg-[#141c2e] p-5 transition hover:border-amber-500/30">
+                    <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Abrir setlist</p>
+                    <p class="mt-2 text-lg font-semibold text-amber-400 truncate">{{ $upcomingPlan->title }}</p>
+                </a>
+            @else
+                <div class="rounded-2xl border border-white/5 bg-[#141c2e] p-5">
+                    <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Setlist activo</p>
+                    <p class="mt-2 text-lg font-semibold text-slate-600">Ninguno</p>
                 </div>
+            @endif
+        </div>
 
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Planes de dirección</p>
-                            <p class="text-2xl font-bold text-gray-900">{{ $plansCount }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-sm text-gray-500">Próximo servicio</p>
-                            @if ($upcomingPlan)
-                                <p class="text-lg font-semibold text-gray-900 truncate">{{ $upcomingPlan->title }}</p>
-                                <p class="text-xs text-gray-500">{{ $upcomingPlan->date->format('d/m/Y') }}</p>
-                            @else
-                                <p class="text-sm text-gray-400">Sin planes próximos</p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
+        {{-- Recent activity --}}
+        <div>
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-white">Actividad reciente</h2>
             </div>
 
-            {{-- Acciones rápidas --}}
-            <div class="grid gap-4 sm:grid-cols-2">
-                <a href="{{ route('songs.create') }}" class="group flex items-center gap-4 rounded-xl bg-indigo-600 px-6 py-5 text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">
-                    <div class="rounded-lg bg-white/15 p-3">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold">Nueva canción</p>
-                        <p class="text-sm text-indigo-200">Registrar cifrado y letra</p>
-                    </div>
-                </a>
-
-                <a href="{{ route('service-plans.create') }}" class="group flex items-center gap-4 rounded-xl bg-violet-600 px-6 py-5 text-white shadow-lg shadow-violet-600/20 transition hover:bg-violet-500">
-                    <div class="rounded-lg bg-white/15 p-3">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold">Nuevo plan</p>
-                        <p class="text-sm text-violet-200">Armar setlist de servicio</p>
-                    </div>
-                </a>
-            </div>
-
-            {{-- Listas recientes --}}
             <div class="grid gap-6 lg:grid-cols-2">
-
-                {{-- Canciones --}}
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                        <h3 class="font-semibold text-gray-900">Canciones recientes</h3>
-                        <a href="{{ route('songs.index') }}" class="text-sm text-indigo-600 hover:text-indigo-800">Ver todas</a>
-                    </div>
+                <x-admin-card title="Canciones recientes">
+                    <x-slot:action>
+                        <a href="{{ route('songs.index') }}" class="text-sm text-violet-400 hover:text-violet-300">Ver todas →</a>
+                    </x-slot:action>
                     @if ($recentSongs->isEmpty())
-                        <div class="p-8 text-center text-sm text-gray-500">
-                            Aún no registraste canciones.
-                            <a href="{{ route('songs.create') }}" class="block mt-2 text-indigo-600 hover:underline">Crear la primera</a>
+                        <div class="p-8 text-center text-sm text-slate-500">
+                            Sin canciones aún.
+                            <a href="{{ route('songs.create') }}" class="mt-2 block text-violet-400 hover:underline">Crear la primera</a>
                         </div>
                     @else
-                        <ul class="divide-y divide-gray-100">
+                        <ul class="divide-y divide-white/5">
                             @foreach ($recentSongs as $song)
-                                <li class="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
+                                <li class="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02]">
                                     <div class="min-w-0">
-                                        <a href="{{ route('songs.show', $song) }}" class="font-medium text-gray-900 hover:text-indigo-600 truncate block">
+                                        <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300 truncate block">
                                             {{ $song->title }}
                                         </a>
-                                        <p class="text-sm text-gray-500">{{ $song->artist }} · <span class="font-mono">{{ $song->key }}</span></p>
+                                        <p class="text-sm text-slate-500">{{ $song->artist }} · <span class="font-mono text-slate-400">{{ $song->key }}</span></p>
                                     </div>
-                                    <a href="{{ route('songs.edit', $song) }}" class="shrink-0 text-xs text-gray-400 hover:text-indigo-600">Editar</a>
+                                    <a href="{{ route('songs.edit', $song) }}" class="shrink-0 text-xs text-slate-500 hover:text-violet-400">Editar</a>
                                 </li>
                             @endforeach
                         </ul>
                     @endif
-                </div>
+                </x-admin-card>
 
-                {{-- Planes --}}
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                        <h3 class="font-semibold text-gray-900">Planes de dirección</h3>
-                        <a href="{{ route('service-plans.index') }}" class="text-sm text-indigo-600 hover:text-indigo-800">Ver todos</a>
-                    </div>
+                <x-admin-card title="Planes de dirección">
+                    <x-slot:action>
+                        <a href="{{ route('service-plans.index') }}" class="text-sm text-violet-400 hover:text-violet-300">Ver todos →</a>
+                    </x-slot:action>
                     @if ($recentPlans->isEmpty())
-                        <div class="p-8 text-center text-sm text-gray-500">
-                            Aún no creaste planes.
-                            <a href="{{ route('service-plans.create') }}" class="block mt-2 text-indigo-600 hover:underline">Crear el primero</a>
+                        <div class="p-8 text-center text-sm text-slate-500">
+                            Sin planes aún.
+                            <a href="{{ route('service-plans.create') }}" class="mt-2 block text-violet-400 hover:underline">Crear el primero</a>
                         </div>
                     @else
-                        <ul class="divide-y divide-gray-100">
+                        <ul class="divide-y divide-white/5">
                             @foreach ($recentPlans as $plan)
-                                <li class="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
+                                <li class="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02]">
                                     <div class="min-w-0">
-                                        <a href="{{ route('service-plans.show', $plan) }}" class="font-medium text-gray-900 hover:text-indigo-600 truncate block">
+                                        <a href="{{ route('service-plans.show', $plan) }}" class="font-medium text-slate-200 hover:text-violet-300 truncate block">
                                             {{ $plan->title }}
                                         </a>
-                                        <p class="text-sm text-gray-500">
-                                            {{ $plan->date->format('d/m/Y') }} · {{ $plan->songs_count }} canción(es)
-                                        </p>
+                                        <p class="text-sm text-slate-500">{{ $plan->date->format('d/m/Y') }} · {{ $plan->songs_count }} canciones</p>
                                     </div>
                                     @if ($plan->date->isToday())
-                                        <span class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Hoy</span>
+                                        <span class="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">Hoy</span>
                                     @elseif ($plan->date->isFuture())
-                                        <span class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Próximo</span>
+                                        <span class="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Próximo</span>
                                     @endif
                                 </li>
                             @endforeach
                         </ul>
                     @endif
-                </div>
-
+                </x-admin-card>
             </div>
         </div>
     </div>

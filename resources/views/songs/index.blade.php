@@ -1,41 +1,34 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Canciones</h2>
-            <a href="{{ route('songs.create') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">+ Nueva canción</a>
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Canciones</h1>
+            <p class="mt-1 text-sm text-slate-500">Tu repertorio de alabanza</p>
         </div>
-    </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                @if ($songs->isEmpty())
-                    <div class="p-8 text-center text-sm text-gray-500">
-                        No hay canciones registradas.
-                        <a href="{{ route('songs.create') }}" class="block mt-2 text-indigo-600 hover:underline">Registrar una</a>
-                    </div>
-                @else
-                    <ul class="divide-y divide-gray-100">
-                        @foreach ($songs as $song)
-                            <li class="flex items-center justify-between px-6 py-4 hover:bg-gray-50">
-                                <div class="min-w-0">
-                                    <a href="{{ route('songs.show', $song) }}" class="font-medium text-gray-900 hover:text-indigo-600">
-                                        {{ $song->title }}
-                                    </a>
-                                    <p class="text-sm text-gray-500">{{ $song->artist }} · Tono: <span class="font-mono">{{ $song->key }}</span></p>
-                                </div>
-                                <div class="flex shrink-0 gap-3 text-sm">
-                                    <a href="{{ route('songs.show', $song) }}" class="text-indigo-600 hover:text-indigo-800">Ver</a>
-                                    <a href="{{ route('songs.edit', $song) }}" class="text-gray-500 hover:text-gray-700">Editar</a>
-                                </div>
-                            </li>
-                        @endforeach
-                    </ul>
-                    <div class="px-6 py-4 border-t border-gray-100">
-                        {{ $songs->links() }}
-                    </div>
-                @endif
-            </div>
-        </div>
+        <a href="{{ route('songs.create') }}" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500">+ Nueva canción</a>
     </div>
+
+    <x-admin-card>
+        @if ($songs->isEmpty())
+            <div class="p-12 text-center text-sm text-slate-500">
+                No hay canciones registradas.
+                <a href="{{ route('songs.create') }}" class="mt-2 block text-violet-400 hover:underline">Registrar una</a>
+            </div>
+        @else
+            <ul class="divide-y divide-white/5">
+                @foreach ($songs as $song)
+                    <li class="flex items-center justify-between px-5 py-4 hover:bg-white/[0.02]">
+                        <div class="min-w-0">
+                            <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $song->title }}</a>
+                            <p class="text-sm text-slate-500">{{ $song->artist }} · Tono: <span class="font-mono text-slate-400">{{ $song->key }}</span></p>
+                        </div>
+                        <div class="flex shrink-0 gap-4 text-sm">
+                            <a href="{{ route('songs.show', $song) }}" class="text-violet-400 hover:text-violet-300">Ver</a>
+                            <a href="{{ route('songs.edit', $song) }}" class="text-slate-500 hover:text-slate-300">Editar</a>
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+            <div class="border-t border-white/5 px-5 py-4">{{ $songs->links() }}</div>
+        @endif
+    </x-admin-card>
 </x-app-layout>

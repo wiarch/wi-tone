@@ -1,158 +1,141 @@
-@php
-    $guitar = $song->chords->firstWhere('instrument', 'guitar');
-    $keyboard = $song->chords->firstWhere('instrument', 'keyboard');
-    $defaultTab = $guitar ? 'guitar' : ($keyboard ? 'keyboard' : 'guitar');
-    $hasChords = $guitar || $keyboard;
-@endphp
-
 @push('head')
-    <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500&display=swap" rel="stylesheet">
+    @vite(['resources/js/song-performance.js'])
 @endpush
 
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between song-show-header">
-            <div>
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight song-show-title">
-                    {{ $song->title }}
-                </h2>
-                <p class="text-sm text-gray-500 mt-1 song-show-meta">
-                    {{ $song->artist }} · Tono: <span class="font-mono font-medium">{{ $song->key }}</span>
-                </p>
-            </div>
-            <a href="{{ route('songs.edit', $song) }}" class="song-show-edit inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800">
-                Editar
-            </a>
-        </div>
-    </x-slot>
+    @if (session('status') === 'song-created')
+        <div class="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">Canción registrada.</div>
+    @endif
+    @if (session('status') === 'song-updated')
+        <div class="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">Canción actualizada.</div>
+    @endif
 
     <div
-        x-data="{
-            tab: '{{ $defaultTab }}',
-            stageMode: localStorage.getItem('wi-tone-stage') === 'true',
-            setStageMode(value) {
-                this.stageMode = value;
-                localStorage.setItem('wi-tone-stage', value);
-                document.body.classList.toggle('song-stage-mode', value);
-            },
-            toggleStage() {
-                this.setStageMode(!this.stageMode);
-            },
-        }"
-        x-init="
-            setStageMode(stageMode);
-            return () => document.body.classList.remove('song-stage-mode');
-        "
+        data-song-performance
+        data-lines='@json($parsedLines)'
+        data-song-key="{{ $song->key }}"
+        data-diagram-library='@json($diagramLibrary)'
+        data-chord-names='@json($songChordNames)'
+        class="song-performance -mx-4 overflow-hidden rounded-xl border border-white/5 bg-[#121820] sm:-mx-6 lg:-mx-8"
     >
-        <div class="py-6 sm:py-8">
-            <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-4">
-
-                @if (session('status') === 'song-created')
-                    <div x-show="!stageMode" class="rounded-md bg-green-50 p-4 text-sm text-green-800">
-                        Canción registrada correctamente.
-                    </div>
-                @endif
-                @if (session('status') === 'song-updated')
-                    <div x-show="!stageMode" class="rounded-md bg-green-50 p-4 text-sm text-green-800">
-                        Canción actualizada correctamente.
-                    </div>
-                @endif
-
-                <div
-                    class="overflow-hidden shadow-sm sm:rounded-xl transition-colors duration-300"
-                    :class="stageMode
-                        ? 'bg-slate-900 ring-1 ring-white/10 shadow-2xl shadow-black/40'
-                        : 'bg-white ring-1 ring-gray-200'"
-                >
-                    <div
-                        class="sticky top-0 z-10 flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 backdrop-blur-md"
-                        :class="stageMode
-                            ? 'border-white/10 bg-slate-900/95'
-                            : 'border-gray-200 bg-white/95'"
-                    >
-                        @if ($hasChords)
-                            <nav class="flex gap-1 rounded-lg p-1" :class="stageMode ? 'bg-slate-800' : 'bg-gray-100'" role="tablist" aria-label="Instrumento">
-                                @if ($guitar)
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        :aria-selected="tab === 'guitar'"
-                                        @click="tab = 'guitar'"
-                                        class="rounded-md px-4 py-2 text-sm font-medium transition"
-                                        :class="tab === 'guitar'
-                                            ? (stageMode ? 'bg-indigo-600 text-white shadow' : 'bg-white text-indigo-700 shadow-sm')
-                                            : (stageMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')"
-                                    >
-                                        Guitarra
-                                    </button>
-                                @endif
-                                @if ($keyboard)
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        :aria-selected="tab === 'keyboard'"
-                                        @click="tab = 'keyboard'"
-                                        class="rounded-md px-4 py-2 text-sm font-medium transition"
-                                        :class="tab === 'keyboard'
-                                            ? (stageMode ? 'bg-indigo-600 text-white shadow' : 'bg-white text-indigo-700 shadow-sm')
-                                            : (stageMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')"
-                                    >
-                                        Teclado
-                                    </button>
-                                @endif
-                            </nav>
-                        @else
-                            <p class="text-sm" :class="stageMode ? 'text-slate-500' : 'text-gray-500'">Sin cifrados</p>
-                        @endif
-
-                        <button
-                            type="button"
-                            @click="toggleStage()"
-                            class="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition"
-                            :class="stageMode
-                                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                                : 'border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100'"
-                        >
-                            <svg x-show="!stageMode" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                            </svg>
-                            <svg x-show="stageMode" x-cloak class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                            </svg>
-                            <span>Modo altar</span>
-                            <span x-show="stageMode" x-cloak class="text-amber-400/80">· activo</span>
-                        </button>
-                    </div>
-
-                    <div
-                        class="overflow-x-auto p-4 sm:p-8"
-                        :class="stageMode ? 'bg-slate-950' : 'bg-gray-50/50'"
-                    >
-                        @if ($guitar)
-                            <div x-show="tab === 'guitar'" x-cloak role="tabpanel" aria-label="Cifrado guitarra">
-                                <pre class="chord-sheet font-mono text-base sm:text-lg leading-[1.75] whitespace-pre select-text" :class="stageMode ? 'text-slate-100' : 'text-gray-900'">{{ $guitar->content }}</pre>
-                            </div>
-                        @endif
-
-                        @if ($keyboard)
-                            <div x-show="tab === 'keyboard'" x-cloak role="tabpanel" aria-label="Cifrado teclado">
-                                <pre class="chord-sheet font-mono text-base sm:text-lg leading-[1.75] whitespace-pre select-text" :class="stageMode ? 'text-slate-100' : 'text-gray-900'">{{ $keyboard->content }}</pre>
-                            </div>
-                        @endif
-
-                        @if (! $hasChords)
-                            <p class="text-center text-sm py-12" :class="stageMode ? 'text-slate-500' : 'text-gray-500'">
-                                Esta canción no tiene cifrados registrados.
-                                <a href="{{ route('songs.edit', $song) }}" class="text-indigo-500 hover:underline">Agregar cifrado</a>
-                            </p>
-                        @endif
-                    </div>
+        <div class="flex min-h-[calc(100vh-7rem)] flex-col lg:flex-row">
+            {{-- Barra lateral de herramientas --}}
+            <aside class="order-2 flex shrink-0 flex-row flex-wrap gap-1 border-t border-white/5 bg-[#0e131c] p-2 lg:order-1 lg:w-52 lg:flex-col lg:gap-0 lg:border-r lg:border-t-0 lg:p-0">
+                <div class="hidden border-b border-white/5 px-3 py-3 lg:block">
+                    <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Herramientas</p>
                 </div>
 
-                <p x-show="stageMode" x-cloak class="text-center text-xs text-slate-500">
-                    Lectura nocturna para el escenario. La preferencia se guarda en este navegador.
-                </p>
+                <button type="button" data-autoscroll-btn class="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-slate-300 transition hover:bg-white/5 lg:w-full lg:rounded-none">
+                    <span class="text-base">↕</span> Desplazar
+                </button>
+                <button type="button" data-fullscreen-btn class="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-slate-300 transition hover:bg-white/5 lg:w-full lg:rounded-none">
+                    <span class="text-base">⛶</span> Pantalla completa
+                </button>
+
+                <div class="flex w-full items-center gap-2 rounded-lg px-3 py-2 lg:rounded-none lg:border-t lg:border-white/5">
+                    <span class="shrink-0 text-xs text-slate-500">Instrum.</span>
+                    <select data-instrument class="admin-input flex-1 py-1 text-xs">
+                        <option value="guitar">Guitarra</option>
+                        <option value="keyboard">Teclado</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-1 rounded-lg px-3 py-2 lg:w-full lg:rounded-none lg:border-t lg:border-white/5">
+                    <span class="mr-1 text-xs text-slate-500">Tono</span>
+                    <button type="button" data-transpose-down class="flex h-7 w-7 items-center justify-center rounded border border-white/10 text-slate-300 hover:bg-white/5">−</button>
+                    <span data-transpose-value class="min-w-[2rem] text-center font-mono text-xs text-amber-400">0</span>
+                    <button type="button" data-transpose-up class="flex h-7 w-7 items-center justify-center rounded border border-white/10 text-slate-300 hover:bg-white/5">+</button>
+                </div>
+
+                <div class="hidden px-3 py-2 text-xs text-slate-500 lg:block lg:border-t lg:border-white/5">
+                    <span class="text-slate-400">Afinación</span>
+                    <p class="mt-0.5 text-slate-300">Estándar</p>
+                </div>
+
+                <div class="flex w-full items-center gap-2 rounded-lg px-3 py-2 lg:rounded-none lg:border-t lg:border-white/5">
+                    <span class="shrink-0 text-xs text-slate-500">Capo</span>
+                    <select data-capo class="admin-input flex-1 py-1 text-xs">
+                        <option value="0">Sin capo</option>
+                        @for ($i = 1; $i <= 9; $i++)
+                            <option value="{{ $i }}">Traste {{ $i }}</option>
+                        @endfor
+                    </select>
+                </div>
+                <p data-capo-label class="hidden px-3 pb-2 text-[10px] text-slate-500 lg:block">Sin capo</p>
+
+                <div class="flex w-full flex-col gap-1 rounded-lg px-3 py-2 lg:rounded-none lg:border-t lg:border-white/5">
+                    <div class="flex items-center justify-between text-xs text-slate-500">
+                        <span>Texto</span>
+                        <span data-text-size-value class="font-mono text-amber-400">100%</span>
+                    </div>
+                    <input type="range" data-text-size min="70" max="150" value="100" class="w-full accent-amber-500">
+                </div>
+
+                <label class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs text-slate-300 lg:rounded-none lg:border-t lg:border-white/5">
+                    <input type="checkbox" data-show-diagrams checked class="rounded border-white/20 bg-white/5 text-amber-500 focus:ring-amber-500/40">
+                    Diagramas
+                </label>
+
+                <details class="w-full lg:border-t lg:border-white/5">
+                    <summary class="cursor-pointer list-none px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                        ⏱ Metrónomo
+                    </summary>
+                    <div class="space-y-2 border-t border-white/5 px-3 py-3">
+                        <input type="range" data-metro-bpm min="40" max="220" value="100" class="w-full accent-amber-500">
+                        <button type="button" data-metro-toggle class="w-full rounded-lg bg-amber-600/80 py-1.5 text-xs font-medium text-white hover:bg-amber-500">▶</button>
+                    </div>
+                </details>
+
+                <a href="{{ route('songs.export', $song) }}" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-slate-300 transition hover:bg-white/5 lg:w-full lg:rounded-none lg:border-t lg:border-white/5">
+                    <span class="text-base">⎙</span> Exportar
+                </a>
+                <a href="{{ route('songs.edit', $song) }}" class="mt-auto hidden items-center gap-2 border-t border-white/5 px-3 py-3 text-xs text-violet-400 hover:text-violet-300 lg:flex">
+                    ✎ Editar cifrado
+                </a>
+            </aside>
+
+            {{-- Contenido principal --}}
+            <div class="order-1 flex min-w-0 flex-1 flex-col lg:order-2">
+                <header class="border-b border-white/5 px-4 py-4 sm:px-6">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h1 class="text-xl font-bold text-white sm:text-2xl">{{ $song->title }}</h1>
+                            <p class="mt-0.5 text-sm text-slate-400">{{ $song->artist }}</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <a href="{{ route('songs.export', $song) }}" class="text-xs text-amber-400 hover:text-amber-300">Exportar</a>
+                            <a href="{{ route('songs.edit', $song) }}" class="text-xs text-violet-400 hover:text-violet-300">Editar →</a>
+                        </div>
+                    </div>
+
+                    <nav class="mt-4 flex flex-wrap gap-1" role="tablist">
+                        <button type="button" data-view-tab="main" class="rounded-md bg-white/10 px-3 py-1.5 text-sm font-medium text-white">Principal</button>
+                        <button type="button" data-view-tab="main" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-slate-200" disabled title="Próximamente">Simplificada</button>
+                        <button type="button" data-view-tab="lyrics" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-slate-200">Letra</button>
+                    </nav>
+                </header>
+
+                <div data-chord-carousel-wrap class="border-b border-white/5 bg-[#0e131c]/80 px-4 py-3 sm:px-6">
+                    <div class="mb-2 flex items-center justify-between">
+                        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Acordes de la canción</p>
+                        <p class="text-xs text-slate-500">Tono: <span data-display-key class="font-mono font-semibold text-amber-400">{{ $song->key }}</span></p>
+                    </div>
+                    @if (count($songChordNames))
+                        <div data-chord-carousel class="flex gap-2 overflow-x-auto pb-1"></div>
+                    @else
+                        <p class="text-xs text-slate-600">Sin acordes en el cifrado.</p>
+                    @endif
+                </div>
+
+                <div data-chord-sheet class="flex-1 overflow-auto bg-[#0a0e14] px-4 py-6 sm:px-8 sm:py-8">
+                    @if ($content === '')
+                        <p class="py-16 text-center text-sm text-slate-500">
+                            Sin letra ni cifrado.
+                            <a href="{{ route('songs.edit', $song) }}" class="text-violet-400 hover:underline">Agregar</a>
+                        </p>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
