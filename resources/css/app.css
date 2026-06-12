@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+.chord-sheet {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-variant-numeric: tabular-nums;
+    tab-size: 4;
+}
+
+body.song-stage-mode .min-h-screen {
+    background-color: #020617;
+}
+
+body.song-stage-mode nav {
+    background-color: #0f172a;
+    border-color: rgb(255 255 255 / 0.1);
+}
+
+body.song-stage-mode nav a,
+body.song-stage-mode nav button {
+    color: #cbd5e1;
+}
+
+body.song-stage-mode header {
+    background-color: #0f172a;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1);
+    box-shadow: none;
+}
+
+body.song-stage-mode .song-show-title {
+    color: #f1f5f9;
+}
+
+body.song-stage-mode .song-show-meta {
+    color: #94a3b8;
+}
+
+body.song-stage-mode .song-show-edit {
+    color: #a5b4fc;
+}
+
+body.song-stage-mode .song-show-edit:hover {
+    color: #c7d2fe;
+}
