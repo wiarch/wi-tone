@@ -39,6 +39,25 @@ export function transposeChord(chord, semitones) {
     return newRoot + match[2];
 }
 
+export function semitonesBetweenKeys(fromKey, toKey) {
+    const from = parseKeyRoot(fromKey);
+    const to = parseKeyRoot(toKey);
+    if (from === null || to === null) {
+        return 0;
+    }
+
+    return ((to - from) % 12 + 12) % 12;
+}
+
+function parseKeyRoot(key) {
+    const match = String(key).trim().match(/^([A-G][#b♯♭]?)/i);
+    if (!match) {
+        return null;
+    }
+
+    return noteIndex(match[1]);
+}
+
 export function transposeKey(key, semitones) {
     return transposeChord(key, semitones);
 }
@@ -213,7 +232,7 @@ export function paintGuitarSvg(svgEl, representation, layoutOverrides = {}) {
             mute.setAttribute('x', String(layout.nutX - 14));
             mute.setAttribute('y', String(y + 4));
             mute.setAttribute('fill', '#f87171');
-            mute.setAttribute('font-size', '10');
+            mute.setAttribute('font-size', String(layout.muteFontSize ?? 10));
             mute.setAttribute('font-weight', 'bold');
             mute.textContent = '×';
             dotsGroup.appendChild(mute);
@@ -325,6 +344,7 @@ export const CAROUSEL_GUITAR_LAYOUT = {
     dotR: 3.5,
     bgFill: '#1a2236',
     showFretNumbers: false,
+    muteFontSize: 14,
 };
 
 export const DICTIONARY_GUITAR_LAYOUT = {

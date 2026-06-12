@@ -73,8 +73,70 @@ body.song-stage-mode main {
     font-variant-numeric: tabular-nums;
 }
 
+.song-performance .chordpro-line {
+    break-inside: avoid;
+}
+
+.song-performance .chordpro-chord-row {
+    min-height: 1.75rem;
+}
+
 .song-performance .chordpro-lyric-row {
     line-height: 1.75;
+}
+
+.song-export .chord-trigger {
+    color: var(--export-chord-color, #e85d04);
+    background: transparent;
+}
+
+.plan-export-page .plan-export-lyric,
+.plan-export-page .plan-export-title {
+    color: var(--plan-lyric-color, #111827);
+}
+
+.plan-export-page .plan-export-chord,
+.plan-export-page .plan-export-artist {
+    color: var(--plan-chord-color, #2563eb);
+}
+
+.plan-export-page .plan-export-chord {
+    background: color-mix(in srgb, var(--plan-chord-color, #2563eb) 12%, transparent);
+}
+
+.plan-export-page[data-paper='letter'] .export-document {
+    max-width: 8.5in;
+}
+
+.plan-export-page[data-paper='a4'] .export-document {
+    max-width: 210mm;
+}
+
+@media print {
+    .plan-export-page .export-panel {
+        display: none !important;
+    }
+
+    .plan-export-page .export-document {
+        padding-right: 0 !important;
+    }
+
+    .plan-export-page .plan-print-song {
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .plan-export-page .plan-share-item {
+        break-inside: avoid;
+    }
+
+    .plan-export-page .plan-share-item[open] summary {
+        display: none;
+    }
+
+    .plan-export-page .plan-share-item details > div {
+        display: block !important;
+    }
 }
 
 body.song-stage-mode .song-performance {

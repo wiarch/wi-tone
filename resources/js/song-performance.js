@@ -5,6 +5,8 @@ import {
     transposeChord,
     transposeKey,
 } from './lib/chord-diagram-render.js';
+import { chordProToBlocks } from './lib/chord-sheet-parser.js';
+import { readSongContent, renderBlocksHtml, transposeBlocks } from './lib/chord-sheet-view.js';
 
 function escapeHtml(str) {
     return String(str)
@@ -12,52 +14,6 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
-}
-
-function buildChordLine(chords, lyricLength) {
-    if (!chords.length) {
-        return '';
-    }
-    const width = Math.max(lyricLength, ...chords.map(({ pos, name }) => pos + name.length));
-    const chars = Array(width).fill(' ');
-    for (const { pos, name } of chords) {
-        for (let j = 0; j < name.length; j++) {
-            if (pos + j < chars.length) {
-                chars[pos + j] = name[j];
-            }
-        }
-    }
-    return chars.join('').replace(/\s+$/, '');
-}
-
-function isSectionHeader(line) {
-    const t = line.lyrics.trim();
-    return !line.chords?.length && /^\[[^\]]+\]$/.test(t);
-}
-
-function renderSheet(lines, { transpose, viewMode, fontSize }) {
-    return lines.map((line) => {
-        if (isSectionHeader(line)) {
-            return `<div class="song-section-label mt-5 mb-2 text-sm font-semibold tracking-wide text-amber-400/90">${escapeHtml(line.lyrics.trim())}</div>`;
-        }
-
-        const chords = (line.chords || []).map((c) => ({
-            pos: c.pos,
-            name: transposeChord(c.name, transpose),
-            original: c.name,
-        }));
-        const lyrics = line.lyrics;
-        const chordLine = buildChordLine(chords, lyrics.length);
-        const hideChords = viewMode === 'lyrics';
-
-        const chordRow = !hideChords && chordLine
-            ? `<div class="chordpro-chord-row relative h-[1.35em] leading-none">
-                ${chords.map((c) => `<button type="button" class="chord-trigger absolute top-0 font-semibold text-amber-400 hover:text-amber-300" style="left:${c.pos}ch" data-chord="${escapeHtml(c.original)}">${escapeHtml(c.name)}</button>`).join('')}
-               </div>`
-            : '';
-
-        return `<div class="chordpro-line py-1">${chordRow}<div class="chordpro-lyric-row whitespace-pre text-slate-100">${escapeHtml(lyrics) || '&nbsp;'}</div></div>`;
-    }).join('');
 }
 
 function getDiagramData(library, chordName, instrument) {
@@ -74,7 +30,7 @@ function initSongPerformance() {
         return;
     }
 
-    const lines = JSON.parse(root.dataset.lines || '[]');
+    const baseBlocks = chordProToBlocks(readSongContent(root));
     const library = JSON.parse(root.dataset.diagramLibrary || '{}');
     const chordNames = JSON.parse(root.dataset.chordNames || '[]');
     const songKey = root.dataset.songKey || 'C';
@@ -104,11 +60,15 @@ function initSongPerformance() {
     let audioCtx = null;
 
     function render() {
-        if (!lines.length) {
+        if (!baseBlocks.length) {
             return;
         }
+
+        const blocks = transposeBlocks(baseBlocks, state.transpose);
+        const showChords = state.viewMode !== 'lyrics';
+
         sheetEl.style.fontSize = `${state.fontSize}%`;
-        sheetEl.innerHTML = `<div class="chordpro-sheet min-w-max">${renderSheet(lines, state)}</div>`;
+        sheetEl.innerHTML = `<div class="chord-sheet min-h-[200px] rounded-xl border border-dashed border-white/10 bg-[#0a0f1a] p-4 sm:p-5">${renderBlocksHtml(blocks, { showChords, originalBlocks: baseBlocks })}</div>`;
         displayKeyEl.textContent = transposeKey(songKey, state.transpose);
         transposeEl.textContent = state.transpose > 0 ? `+${state.transpose}` : String(state.transpose);
         textSizeEl.textContent = `${state.fontSize}%`;

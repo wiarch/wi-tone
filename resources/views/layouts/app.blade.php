@@ -48,5 +48,7 @@
                 </a>
             </div>
         </details>
+
+        @stack('scripts')
     </body>
 </html>

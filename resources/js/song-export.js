@@ -1,4 +1,6 @@
 import { paintGuitarSvg, paintKeyboardSvg } from './lib/chord-diagram-render.js';
+import { chordProToBlocks } from './lib/chord-sheet-parser.js';
+import { readSongContent, renderBlocksHtml } from './lib/chord-sheet-view.js';
 
 const PRINT_GUITAR = {
     nutX: 16,
@@ -20,51 +22,6 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;');
 }
 
-function buildChordLine(chords, lyricLength) {
-    if (!chords.length) {
-        return '';
-    }
-    const width = Math.max(lyricLength, ...chords.map(({ pos, name }) => pos + name.length));
-    const chars = Array(width).fill(' ');
-    for (const { pos, name } of chords) {
-        for (let j = 0; j < name.length; j++) {
-            if (pos + j < chars.length) {
-                chars[pos + j] = name[j];
-            }
-        }
-    }
-    return chars.join('').replace(/\s+$/, '');
-}
-
-function isSectionHeader(line) {
-    const t = line.lyrics.trim();
-    return !line.chords?.length && /^\[[^\]]+\]$/.test(t);
-}
-
-function renderExportSheet(lines, { showChords, showLyrics }) {
-    return lines.map((line) => {
-        if (isSectionHeader(line)) {
-            return `<div class="export-section break-inside-avoid font-sans text-sm font-semibold" style="color:var(--export-chord-color)">${escapeHtml(line.lyrics.trim())}</div>`;
-        }
-
-        const chords = line.chords || [];
-        const lyrics = line.lyrics;
-        const chordRow = showChords && chords.length
-            ? `<div class="export-chord-row relative h-[1.2em] leading-none">${chords.map((c) => `<span class="absolute top-0 font-semibold" style="left:${c.pos}ch;color:var(--export-chord-color)">${escapeHtml(c.name)}</span>`).join('')}</div>`
-            : '';
-
-        const lyricRow = showLyrics
-            ? `<div class="export-lyric-row whitespace-pre text-gray-900">${escapeHtml(lyrics) || '&nbsp;'}</div>`
-            : '';
-
-        if (!chordRow && !lyricRow) {
-            return '';
-        }
-
-        return `<div class="export-line break-inside-avoid py-0.5">${chordRow}${lyricRow}</div>`;
-    }).join('');
-}
-
 function getDiagramRep(library, name, instrument) {
     return library[name]?.[instrument]?.[0]?.representation ?? null;
 }
@@ -75,7 +32,7 @@ function initSongExport() {
         return;
     }
 
-    const lines = JSON.parse(root.dataset.lines || '[]');
+    const blocks = chordProToBlocks(readSongContent(root));
     const library = JSON.parse(root.dataset.diagramLibrary || '{}');
     const chordNames = JSON.parse(root.dataset.chordNames || '[]');
 
@@ -103,12 +60,16 @@ function initSongExport() {
     }
 
     function renderSheet() {
-        if (!lines.length) {
+        if (!blocks.length) {
             sheetEl.innerHTML = '<p class="text-gray-500">Sin contenido para exportar.</p>';
             return;
         }
         sheetEl.style.fontSize = `${state.fontSize}px`;
-        sheetEl.innerHTML = renderExportSheet(lines, state);
+        sheetEl.innerHTML = renderBlocksHtml(blocks, {
+            showChords: state.showChords,
+            showLyrics: state.showLyrics,
+            lyricClass: 'text-gray-900',
+        });
         sheetEl.classList.toggle('hidden', !state.showChords && !state.showLyrics);
     }
 

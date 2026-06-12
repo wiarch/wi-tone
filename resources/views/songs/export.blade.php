@@ -9,13 +9,13 @@
 
     <div
         data-song-export
-        data-lines='@json($parsedLines)'
         data-song-key="{{ $song->key }}"
         data-diagram-library='@json($diagramLibrary)'
         data-chord-names='@json($songChordNames)'
         class="song-export min-h-screen bg-white text-gray-900"
         style="--export-chord-color: #e85d04;"
     >
+        <script type="application/json" data-song-content>@json($content)</script>
         {{-- Panel flotante (oculto al imprimir) --}}
         <aside data-export-panel class="export-panel fixed right-4 top-4 z-50 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-xl print:hidden">
             <p class="mb-3 text-sm font-semibold text-gray-800">Opciones de exportación</p>

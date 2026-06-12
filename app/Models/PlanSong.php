@@ -15,7 +15,14 @@ class PlanSong extends Pivot
     {
         return [
             'order' => 'integer',
+            'team_member_id' => 'integer',
+            'category_id' => 'integer',
         ];
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function servicePlan(): BelongsTo
@@ -26,5 +33,10 @@ class PlanSong extends Pivot
     public function song(): BelongsTo
     {
         return $this->belongsTo(Song::class);
+    }
+
+    public function teamMember(): BelongsTo
+    {
+        return $this->belongsTo(TeamMember::class);
     }
 }

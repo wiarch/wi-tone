@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'title', 'artist', 'key'])]
+#[Fillable(['user_id', 'title', 'artist', 'key', 'category_id'])]
 class Song extends Model
 {
     use HasFactory;
@@ -17,6 +17,11 @@ class Song extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function chords(): HasMany

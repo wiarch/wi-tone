@@ -9,20 +9,47 @@
 @endphp
 
 <div class="space-y-6">
-    <div class="grid gap-4 sm:grid-cols-3">
-        <div class="sm:col-span-1">
+    @php
+        $categories = $categories ?? collect();
+        $selectedCategory = old('category_id', $song?->category_id ?? '');
+    @endphp
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
             <x-input-label for="title" value="Título" class="text-slate-300" />
             <x-text-input id="title" name="title" type="text" class="mt-1 block w-full admin-input" :value="old('title', $song?->title ?? '')" required autofocus />
             <x-input-error class="mt-2" :messages="$errors->get('title')" />
         </div>
-        <div class="sm:col-span-1">
+        <div>
             <x-input-label for="artist" value="Artista / Autor" class="text-slate-300" />
             <x-text-input id="artist" name="artist" type="text" class="mt-1 block w-full admin-input" :value="old('artist', $song?->artist ?? '')" required />
             <x-input-error class="mt-2" :messages="$errors->get('artist')" />
         </div>
-        <div class="sm:col-span-1">
+        <div>
+            <x-input-label for="category_id" value="Categoría" class="text-slate-300" />
+            <select id="category_id" name="category_id" class="mt-1 block w-full admin-input text-sm">
+                <option value="">Sin categoría</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}" @selected((string) $selectedCategory === (string) $category->id)>{{ $category->name }}</option>
+                @endforeach
+            </select>
+            <x-input-error class="mt-2" :messages="$errors->get('category_id')" />
+        </div>
+        <div>
             <x-input-label for="key" value="Tono principal" class="text-slate-300" />
-            <x-text-input id="key" name="key" type="text" data-key-field class="mt-1 block w-full admin-input" :value="old('key', $song?->key ?? '')" placeholder="Ej: G, D, Bm" required />
+            @php
+                $songKey = old('key', $song?->key ?? '');
+                $keyOptions = ['A', 'Bb', 'B', 'C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab'];
+            @endphp
+            <select id="key" name="key" data-key-field required class="mt-1 block w-full admin-input font-mono text-sm">
+                <option value="" disabled {{ $songKey === '' ? 'selected' : '' }}>Seleccionar tono…</option>
+                @foreach ($keyOptions as $tone)
+                    <option value="{{ $tone }}" @selected($songKey === $tone)>{{ $tone }}</option>
+                @endforeach
+                @if ($songKey && ! in_array($songKey, $keyOptions, true))
+                    <option value="{{ $songKey }}" selected>{{ $songKey }}</option>
+                @endif
+            </select>
             <x-input-error class="mt-2" :messages="$errors->get('key')" />
         </div>
     </div>

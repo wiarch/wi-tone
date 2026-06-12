@@ -13,12 +13,12 @@
 
     <div
         data-song-performance
-        data-lines='@json($parsedLines)'
         data-song-key="{{ $song->key }}"
         data-diagram-library='@json($diagramLibrary)'
         data-chord-names='@json($songChordNames)'
         class="song-performance -mx-4 overflow-hidden rounded-xl border border-white/5 bg-[#121820] sm:-mx-6 lg:-mx-8"
     >
+        <script type="application/json" data-song-content>@json($content)</script>
         <div class="flex min-h-[calc(100vh-7rem)] flex-col lg:flex-row">
             {{-- Barra lateral de herramientas --}}
             <aside class="order-2 flex shrink-0 flex-row flex-wrap gap-1 border-t border-white/5 bg-[#0e131c] p-2 lg:order-1 lg:w-52 lg:flex-col lg:gap-0 lg:border-r lg:border-t-0 lg:p-0">

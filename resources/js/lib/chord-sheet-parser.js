@@ -328,15 +328,156 @@ export function detectChordSheetFormat(text) {
     return false;
 }
 
+export function isWhitespaceOnlyLyrics(lyrics) {
+    return !String(lyrics ?? '').replace(/\s/g, '').length;
+}
+
+export function spreadChordCollisions(chords) {
+    if (!chords?.length) {
+        return [];
+    }
+
+    const sorted = [...chords].sort((a, b) => a.pos - b.pos || a.name.localeCompare(b.name));
+    let cursor = -1;
+
+    return sorted.map((chord) => {
+        let pos = chord.pos;
+        if (pos <= cursor) {
+            pos = cursor + 1;
+        }
+        cursor = pos + chord.name.length;
+
+        return { ...chord, pos };
+    });
+}
+
+export function normalizeSheetLines(lines) {
+    const out = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const next = lines[i + 1];
+        const chordOnly = line.chords?.length && isWhitespaceOnlyLyrics(line.lyrics);
+        const lyricOnly = !line.chords?.length && String(line.lyrics ?? '').trim().length > 0;
+
+        if (chordOnly && lyricOnly) {
+            out.push({
+                lyrics: next.lyrics,
+                chords: spreadChordCollisions(line.chords),
+            });
+            i++;
+            continue;
+        }
+
+        out.push({
+            lyrics: line.lyrics ?? '',
+            chords: spreadChordCollisions(line.chords ?? []),
+        });
+    }
+
+    return out;
+}
+
+export function parseChordProLine(line) {
+    const chords = [];
+    const lyricChars = [];
+    let i = 0;
+
+    while (i < line.length) {
+        if (line[i] === '[') {
+            const end = line.indexOf(']', i + 1);
+            if (end !== -1) {
+                const name = line.slice(i + 1, end);
+                if (isChordBracketName(name)) {
+                    chords.push({ pos: lyricChars.length, name });
+                    i = end + 1;
+                    continue;
+                }
+            }
+        }
+
+        lyricChars.push(line[i]);
+        i++;
+    }
+
+    return { lyrics: lyricChars.join(''), chords };
+}
+
+/**
+ * @returns {Array<{type: 'pair', chordLine: string, lyricLine: string} | {type: 'chords', chordLine: string} | {type: 'lyrics', lyricLine: string}>}
+ */
+export function chordProToBlocks(text) {
+    const raw = String(text ?? '').replace(/\r\n/g, '\n');
+    if (!raw.trim()) {
+        return [];
+    }
+
+    const lines = raw.split('\n');
+    const blocks = [];
+
+    for (let index = 0; index < lines.length; index++) {
+        const parsed = parseChordProLine(lines[index]);
+        let { lyrics, chords } = parsed;
+
+        if (!lyrics.trim() && !chords.length) {
+            continue;
+        }
+
+        chords = spreadChordCollisions(chords);
+
+        const nextParsed = index + 1 < lines.length ? parseChordProLine(lines[index + 1]) : null;
+        const chordOnly = chords.length > 0 && isWhitespaceOnlyLyrics(lyrics);
+        const nextLyricOnly = nextParsed
+            && !nextParsed.chords.length
+            && String(nextParsed.lyrics ?? '').trim().length > 0;
+
+        if (chordOnly && nextLyricOnly) {
+            blocks.push({
+                type: 'pair',
+                chordLine: rebuildChordLine(lyrics, chords),
+                lyricLine: nextParsed.lyrics,
+            });
+            index++;
+            continue;
+        }
+
+        if (chords.length && lyrics.trim()) {
+            blocks.push({
+                type: 'pair',
+                chordLine: rebuildChordLine(lyrics, chords),
+                lyricLine: lyrics,
+            });
+            continue;
+        }
+
+        if (chords.length) {
+            const chordLine = rebuildChordLine(lyrics, chords);
+            if (chordLine.trim()) {
+                blocks.push({ type: 'chords', chordLine });
+            }
+            continue;
+        }
+
+        if (lyrics.trim()) {
+            blocks.push({ type: 'lyrics', lyricLine: lyrics });
+        }
+    }
+
+    return blocks;
+}
+
 export function parsedLinesToChordPro(parsedLines) {
     return parsedLines
         .map((line) => {
-            const sorted = [...line.chords].sort((a, b) => a.pos - b.pos);
+            const sorted = spreadChordCollisions(line.chords);
             let result = '';
             let ci = 0;
 
             for (let i = 0; i < line.lyrics.length; i++) {
                 while (ci < sorted.length && sorted[ci].pos === i) {
+                    if (result.length && !result.endsWith(' ')) {
+                        result += ' ';
+                    }
                     result += `[${sorted[ci].name}]`;
                     ci++;
                 }
@@ -344,6 +485,9 @@ export function parsedLinesToChordPro(parsedLines) {
             }
 
             while (ci < sorted.length) {
+                if (result.length && !result.endsWith(' ')) {
+                    result += ' ';
+                }
                 result += `[${sorted[ci].name}]`;
                 ci++;
             }

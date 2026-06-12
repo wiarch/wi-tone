@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreSongRequest;
+use App\Models\Category;
 use App\Models\Chord;
 use App\Models\Song;
 use App\Support\ChordProParser;
@@ -17,8 +18,11 @@ class SongController extends Controller
     {
         $query = $request->string('q')->trim();
 
+        $categoryId = $request->integer('category');
+
         $songs = auth()->user()
             ->songs()
+            ->with('category')
             ->when($query->isNotEmpty(), function ($builder) use ($query) {
                 $term = '%'.$query->toString().'%';
                 $builder->where(function ($q) use ($term) {
@@ -27,23 +31,28 @@ class SongController extends Controller
                         ->orWhere('key', 'like', $term);
                 });
             })
+            ->when($categoryId > 0, fn ($builder) => $builder->where('category_id', $categoryId))
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
-        return view('songs.index', compact('songs'));
+        $categories = Category::query()->forUser(auth()->id())->orderBy('name')->get();
+
+        return view('songs.index', compact('songs', 'categories', 'categoryId'));
     }
 
     public function create(): View
     {
-        return view('songs.create');
+        return view('songs.create', [
+            'categories' => $this->categoriesForUser(),
+        ]);
     }
 
     public function store(StoreSongRequest $request): RedirectResponse
     {
         $song = DB::transaction(function () use ($request) {
             $song = $request->user()->songs()->create(
-                $request->safe()->only(['title', 'artist', 'key'])
+                $request->safe()->only(['title', 'artist', 'key', 'category_id'])
             );
 
             $this->syncChords($song, $request->validated());
@@ -135,7 +144,10 @@ class SongController extends Controller
 
         $song->load('chords');
 
-        return view('songs.edit', compact('song'));
+        return view('songs.edit', [
+            'song' => $song,
+            'categories' => $this->categoriesForUser(),
+        ]);
     }
 
     public function update(StoreSongRequest $request, Song $song): RedirectResponse
@@ -143,7 +155,7 @@ class SongController extends Controller
         $this->authorizeSong($song);
 
         DB::transaction(function () use ($request, $song) {
-            $song->update($request->safe()->only(['title', 'artist', 'key']));
+            $song->update($request->safe()->only(['title', 'artist', 'key', 'category_id']));
             $this->syncChords($song, $request->validated());
         });
 
@@ -172,5 +184,17 @@ class SongController extends Controller
     private function authorizeSong(Song $song): void
     {
         abort_unless($song->user_id === auth()->id(), 403);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Category>
+     */
+    private function categoriesForUser()
+    {
+        return Category::query()
+            ->forUser(auth()->id())
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get();
     }
 }

@@ -6,87 +6,20 @@ import {
     blocksToChordPro,
     blocksToLyricsText,
     buildChordLineFromChords,
+    chordProToBlocks,
     collectChordsFromBlocks,
     detectChordSheetFormat,
     extractChordsFromLine,
-    isChordBracketName,
     parseChordSheetBlocks,
     rebuildChordLine,
 } from './lib/chord-sheet-parser.js';
-import { noteIndex, transposeChord, transposeKey } from './lib/chord-diagram-render.js';
+import { renderChordRowHtml, transposeChordLine } from './lib/chord-sheet-view.js';
+import { noteIndex, transposeKey } from './lib/chord-diagram-render.js';
 
 const KEY_GRID = ['A', 'Bb', 'B', 'C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab'];
-const CHORD_IN_LINE = /[A-G][#b♯♭]?(?:(?:maj|min|dim|aug|sus[24]?|add\d+)?(?:m|M)?\d*|\d+)*(?:\([^)]+\))?(?:\/[A-G][#b♯♭]?)?/gi;
-
-function parseChordProLine(line) {
-    const chords = [];
-    const lyricChars = [];
-    let i = 0;
-
-    while (i < line.length) {
-        if (line[i] === '[') {
-            const end = line.indexOf(']', i + 1);
-            if (end !== -1) {
-                const name = line.slice(i + 1, end);
-                if (isChordBracketName(name)) {
-                    chords.push({ pos: lyricChars.length, name });
-                    i = end + 1;
-                    continue;
-                }
-            }
-        }
-        lyricChars.push(line[i]);
-        i++;
-    }
-
-    return { lyrics: lyricChars.join(''), chords };
-}
-
-function chordProToBlocks(text) {
-    const raw = text.replace(/\r\n/g, '\n');
-    if (!raw.trim()) {
-        return [];
-    }
-
-    const blocks = [];
-
-    for (const line of raw.split('\n')) {
-        const { lyrics, chords } = parseChordProLine(line);
-        if (!lyrics.trim() && !chords.length) {
-            continue;
-        }
-
-        if (chords.length && lyrics.trim()) {
-            blocks.push({
-                type: 'pair',
-                chordLine: rebuildChordLine(lyrics, chords),
-                lyricLine: lyrics,
-            });
-            continue;
-        }
-
-        if (chords.length) {
-            const chordLine = rebuildChordLine(lyrics, chords);
-            if (chordLine.trim()) {
-                blocks.push({ type: 'chords', chordLine });
-            }
-            continue;
-        }
-    }
-
-    return blocks;
-}
 
 function deepCloneBlocks(source) {
     return source.map((b) => ({ ...b }));
-}
-
-function transposeChordLine(chordLine, semitones) {
-    if (!semitones) {
-        return chordLine;
-    }
-
-    return chordLine.replace(new RegExp(CHORD_IN_LINE.source, 'gi'), (match) => transposeChord(match, semitones));
 }
 
 function transposeBlocks(source, semitones) {
@@ -240,25 +173,7 @@ function initVisualChordEditor(root) {
     }
 
     function chordRowHtml(blockIndex, chordLine, minWidth = 0) {
-        const chords = extractChordsFromLine(chordLine);
-        const width = Math.max(chordLine.length, minWidth, ...chords.map((c) => c.pos + c.name.length), 1);
-
-        return `<div data-chord-row="${blockIndex}" class="relative min-h-[1.5rem] font-mono text-sm leading-none">
-            <span class="invisible whitespace-pre select-none" aria-hidden="true">${' '.repeat(width)}</span>
-            <div class="absolute inset-0 top-0">
-                ${chords
-                    .map(
-                        (c, ci) => `<span
-                            data-sheet-chord
-                            data-block="${blockIndex}"
-                            data-chord-idx="${ci}"
-                            class="absolute top-0 inline-flex cursor-grab touch-none select-none items-center rounded bg-amber-500/15 px-0.5 font-semibold text-amber-400 hover:bg-amber-500/25 active:cursor-grabbing"
-                            style="left:${c.pos}ch"
-                        >${escapeHtml(c.name)}<button type="button" data-remove-sheet-chord data-block="${blockIndex}" data-chord-idx="${ci}" class="ml-px rounded text-[10px] text-amber-600/70 hover:text-amber-200" aria-label="Quitar">×</button></span>`
-                    )
-                    .join('')}
-            </div>
-        </div>`;
+        return renderChordRowHtml(chordLine, { minWidth, blockIndex, interactive: true });
     }
 
     function syncPalette() {
@@ -321,6 +236,10 @@ function initVisualChordEditor(root) {
 
         if (blocks.length) {
             captureBaseline();
+        }
+
+        if (keyField && keyField.value) {
+            keyField.dataset.initialKey = keyField.value;
         }
 
         renderAll();
@@ -575,6 +494,11 @@ function initVisualChordEditor(root) {
         suppressLyricsRebuild = false;
 
         captureBaseline();
+
+        if (keyField?.value) {
+            keyField.dataset.initialKey = keyField.value;
+        }
+
         renderAll();
         showImportStatus(`Cifrado importado · ${paletteChords.size} acorde(s)`);
     }
@@ -748,14 +672,27 @@ function initVisualChordEditor(root) {
     });
 
     keyField?.addEventListener('change', () => {
-        if (!originalBlocks) {
-            captureBaseline();
+        const newKey = keyField.value.trim();
+        if (!newKey) {
             return;
         }
-        if (transposeSemitones === 0) {
-            originalKey = keyField.value.trim();
-            updateTransposeUI();
+
+        if (!originalBlocks?.length && blocks.length) {
+            captureBaseline();
         }
+
+        if (!originalBlocks?.length) {
+            originalKey = newKey;
+            updateTransposeUI();
+            return;
+        }
+
+        const base = originalKey || keyField.dataset.initialKey || newKey;
+        if (!originalKey) {
+            originalKey = base;
+        }
+
+        applyTransposeOffset(semitonesBetweenKeys(originalKey, newKey));
     });
 
     if (searchInput) {
