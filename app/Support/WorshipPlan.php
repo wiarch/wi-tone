@@ -5,6 +5,31 @@ namespace App\Support;
 class WorshipPlan
 {
     /** @var list<string> */
+    public const ROLES = [
+        'Director',
+        'Vocalista',
+        'Guitarrista',
+        'Baterista',
+        'Tecladista',
+        'Bajista',
+        'Proyección',
+        'Sonido',
+        'Otro',
+    ];
+
+    /** @var list<string> */
+    public const VOCAL_RANGES = [
+        'Soprano',
+        'Mezzosoprano',
+        'Contralto',
+        'Alto',
+        'Tenor',
+        'Barítono',
+        'Bajo',
+        'No aplica',
+    ];
+
+    /** @var list<string> */
     public const VOICE_TONES = [
         'Soprano',
         'Alto',

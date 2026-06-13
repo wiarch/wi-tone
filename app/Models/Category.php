@@ -38,9 +38,4 @@ class Category extends Model
                 ->orWhere('user_id', $userId);
         });
     }
-
-    public function isEditableBy(int $userId): bool
-    {
-        return ! $this->is_system && $this->user_id === $userId;
-    }
 }

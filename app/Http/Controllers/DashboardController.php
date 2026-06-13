@@ -17,7 +17,8 @@ class DashboardController extends Controller
         $plansCount = $user->servicePlans()->count();
         $repertoireCount = Song::count();
         $upcomingPlansCount = $user->servicePlans()->whereDate('date', '>=', today())->count();
-        $setlistSongsCount = (int) DB::table('plan_song')
+        $setlistSongsCount = (int) DB::table('plan_entries')
+            ->where('type', 'song')
             ->whereIn('service_plan_id', $user->servicePlans()->pluck('id'))
             ->count();
 
@@ -32,7 +33,7 @@ class DashboardController extends Controller
             ->get();
 
         $recentPlans = $user->servicePlans()
-            ->withCount('songs')
+            ->withCount(['entries as songs_count' => fn ($query) => $query->where('type', 'song')])
             ->orderByDesc('date')
             ->limit(5)
             ->get();

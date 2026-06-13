@@ -241,6 +241,9 @@ export function blocksToChordPro(blocks) {
         if (block.type === 'chords') {
             return [parseChordOnlyLine(block.chordLine)];
         }
+        if (block.type === 'lyrics') {
+            return [{ lyrics: block.lyricLine, chords: [] }];
+        }
         return [];
     });
 
@@ -249,7 +252,7 @@ export function blocksToChordPro(blocks) {
 
 export function blocksToLyricsText(blocks) {
     return blocks
-        .filter((b) => b.type === 'pair')
+        .filter((b) => b.type === 'pair' || b.type === 'lyrics')
         .map((b) => b.lyricLine)
         .join('\n');
 }

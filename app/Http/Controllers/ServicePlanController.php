@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreServicePlanRequest;
 use App\Models\Category;
 use App\Models\Chord;
+use App\Models\Contact;
+use App\Models\PlanEntry;
 use App\Models\ServicePlan;
 use App\Models\Song;
 use App\Support\ChordProParser;
@@ -23,7 +25,7 @@ class ServicePlanController extends Controller
     {
         $servicePlans = auth()->user()
             ->servicePlans()
-            ->withCount('songs')
+            ->withCount(['entries as songs_count' => fn ($query) => $query->where('type', PlanEntry::TYPE_SONG)])
             ->orderByDesc('date')
             ->paginate(15);
 
@@ -32,8 +34,11 @@ class ServicePlanController extends Controller
 
     public function create(): View
     {
+        $contacts = auth()->user()->contacts()->orderBy('name')->get();
+
         return view('service-plans.create', [
-            'voiceTones' => WorshipPlan::VOICE_TONES,
+            'contacts' => $contacts,
+            'musicalKeys' => WorshipPlan::MUSICAL_KEYS,
         ]);
     }
 
@@ -41,21 +46,11 @@ class ServicePlanController extends Controller
     {
         $plan = DB::transaction(function () use ($request) {
             $plan = $request->user()->servicePlans()->create(
-                $request->safe()->only(['title', 'date', 'notes'])
+                $request->safe()->only(['title', 'date', 'notes', 'director_contact_id'])
             );
 
-            foreach ($request->input('members', []) as $member) {
-                $name = trim((string) ($member['name'] ?? ''));
-                if ($name === '') {
-                    continue;
-                }
-
-                $plan->teamMembers()->create([
-                    'user_id' => $request->user()->id,
-                    'name' => $name,
-                    'voice_tone' => $member['voice_tone'],
-                ]);
-            }
+            $entries = $this->parseEntriesPayload($request->input('entries'));
+            $this->syncPlanEntries($plan, $entries);
 
             return $plan;
         });
@@ -65,21 +60,46 @@ class ServicePlanController extends Controller
             ->with('status', 'plan-created');
     }
 
-    public function show(Request $request, ServicePlan $servicePlan): View
+    public function show(ServicePlan $servicePlan): View
     {
         $this->authorizePlan($servicePlan);
 
         $servicePlan->load([
-            'teamMembers' => fn ($query) => $query->orderBy('name'),
-            'songs' => fn ($query) => $query->with('category')->orderByPivot('order'),
+            'director',
+            'entries' => fn ($query) => $query->with(['song.category', 'contact', 'category']),
         ]);
 
-        $search = $request->string('q')->trim();
-        $categoryFilter = $request->integer('category');
+        $contacts = auth()->user()->contacts()->orderBy('name')->get();
+        $categories = Category::query()->forUser(auth()->id())->orderBy('name')->get();
 
-        $availableSongs = Song::query()
+        return view('service-plans.show', [
+            'servicePlan' => $servicePlan,
+            'contacts' => $contacts,
+            'categories' => $categories,
+            'musicalKeys' => WorshipPlan::MUSICAL_KEYS,
+            'builderEntries' => $this->entriesForBuilder($servicePlan),
+        ]);
+    }
+
+    public function searchSongs(Request $request): JsonResponse
+    {
+        $search = $request->string('q')->trim();
+        $planId = $request->integer('plan');
+        $excludeIds = [];
+
+        if ($planId > 0) {
+            $plan = ServicePlan::query()->find($planId);
+            if ($plan && $plan->user_id === auth()->id()) {
+                $excludeIds = $plan->entries()
+                    ->where('type', PlanEntry::TYPE_SONG)
+                    ->pluck('song_id')
+                    ->all();
+            }
+        }
+
+        $songs = Song::query()
             ->with('category')
-            ->whereNotIn('id', $servicePlan->songs->pluck('id'))
+            ->when($excludeIds !== [], fn ($query) => $query->whereNotIn('id', $excludeIds))
             ->when($search->isNotEmpty(), function ($query) use ($search) {
                 $term = '%'.$search->toString().'%';
                 $query->where(function ($q) use ($term) {
@@ -88,23 +108,56 @@ class ServicePlanController extends Controller
                         ->orWhere('key', 'like', $term);
                 });
             })
-            ->when($categoryFilter > 0, fn ($query) => $query->where('category_id', $categoryFilter))
             ->orderBy('title')
-            ->get(['id', 'title', 'artist', 'key', 'category_id']);
+            ->limit(25)
+            ->get(['id', 'title', 'artist', 'key', 'category_id'])
+            ->map(fn (Song $song) => [
+                'id' => $song->id,
+                'title' => $song->title,
+                'artist' => $song->artist,
+                'key' => $song->key,
+                'category' => $song->category?->name,
+                'category_id' => $song->category_id,
+            ]);
 
-        $categories = Category::query()->forUser(auth()->id())->orderBy('name')->get();
-        $categoryMap = $categories->keyBy('id');
+        return response()->json($songs);
+    }
 
-        return view('service-plans.show', [
-            'servicePlan' => $servicePlan,
-            'availableSongs' => $availableSongs,
-            'search' => $search->toString(),
-            'categoryFilter' => $categoryFilter,
-            'categories' => $categories,
-            'categoryMap' => $categoryMap,
-            'voiceTones' => WorshipPlan::VOICE_TONES,
-            'musicalKeys' => WorshipPlan::MUSICAL_KEYS,
+    public function syncSetlist(Request $request, ServicePlan $servicePlan): JsonResponse|RedirectResponse
+    {
+        $this->authorizePlan($servicePlan);
+
+        $validated = $request->validate([
+            'entries' => ['required', 'array'],
+            'entries.*.type' => ['required', 'string', Rule::in([PlanEntry::TYPE_SECTION, PlanEntry::TYPE_SONG])],
+            'entries.*.section_title' => ['nullable', 'string', 'max:255'],
+            'entries.*.song_id' => ['nullable', 'integer', 'exists:songs,id'],
+            'entries.*.performance_key' => ['nullable', 'string', 'max:10'],
+            'entries.*.contact_id' => ['nullable', 'integer', $this->contactRule()],
+            'director_contact_id' => ['nullable', 'integer', $this->contactRule()],
+        ], [], [
+            'entries' => 'setlist',
+            'entries.*.section_title' => 'título de sección',
+            'entries.*.song_id' => 'canción',
+            'entries.*.performance_key' => 'tono',
+            'entries.*.contact_id' => 'integrante',
+            'director_contact_id' => 'director',
         ]);
+
+        DB::transaction(function () use ($servicePlan, $validated) {
+            $servicePlan->update([
+                'director_contact_id' => $validated['director_contact_id'] ?? null,
+            ]);
+            $this->syncPlanEntries($servicePlan, $validated['entries']);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()
+            ->route('service-plans.show', $servicePlan)
+            ->with('status', 'setlist-updated');
     }
 
     public function export(ServicePlan $servicePlan): View
@@ -187,156 +240,101 @@ class ServicePlanController extends Controller
             ->with('status', 'plan-unpublished');
     }
 
-    public function attachSong(Request $request, ServicePlan $servicePlan): RedirectResponse
+  /**
+     * @param  array<int, array<string, mixed>>  $entriesPayload
+     */
+    private function syncPlanEntries(ServicePlan $plan, array $entriesPayload): void
     {
-        $this->authorizePlan($servicePlan);
+        $plan->entries()->delete();
 
-        $validated = $request->validate([
-            'song_id' => ['required', 'integer', 'exists:songs,id'],
-            'category_id' => ['nullable', 'integer', $this->categoryRule()],
-            'performance_key' => ['nullable', 'string', 'max:10'],
-            'team_member_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('team_members', 'id')->where('service_plan_id', $servicePlan->id),
-            ],
-        ], [], [
-            'song_id' => 'canción',
-            'category_id' => 'categoría',
-            'performance_key' => 'tono',
-            'team_member_id' => 'integrante',
-        ]);
+        $order = 1;
+        $usedSongIds = [];
 
-        $songId = (int) $validated['song_id'];
+        foreach ($entriesPayload as $entry) {
+            $type = $entry['type'] ?? PlanEntry::TYPE_SONG;
 
-        if ($servicePlan->songs()->where('song_id', $songId)->exists()) {
-            return back()->withErrors(['song_id' => 'Esta canción ya está en el plan.']);
-        }
+            if ($type === PlanEntry::TYPE_SECTION) {
+                $title = trim((string) ($entry['section_title'] ?? ''));
+                if ($title === '') {
+                    continue;
+                }
 
-        $song = Song::query()->findOrFail($songId);
+                $plan->entries()->create([
+                    'order' => $order++,
+                    'type' => PlanEntry::TYPE_SECTION,
+                    'section_title' => $title,
+                ]);
 
-        $nextOrder = (int) DB::table('plan_song')
-            ->where('service_plan_id', $servicePlan->id)
-            ->max('order') + 1;
-
-        $servicePlan->songs()->attach($songId, [
-            'order' => $nextOrder,
-            'category_id' => $validated['category_id'] ?? $song->category_id,
-            'performance_key' => $validated['performance_key'] ?? $song->key,
-            'team_member_id' => $validated['team_member_id'] ?? null,
-        ]);
-
-        return redirect()
-            ->route('service-plans.show', $servicePlan)
-            ->with('status', 'song-attached');
-    }
-
-    public function updateSong(Request $request, ServicePlan $servicePlan, Song $song): RedirectResponse
-    {
-        $this->authorizePlan($servicePlan);
-
-        abort_unless($servicePlan->songs()->where('song_id', $song->id)->exists(), 404);
-
-        $validated = $request->validate([
-            'category_id' => ['nullable', 'integer', $this->categoryRule()],
-            'performance_key' => ['nullable', 'string', 'max:10'],
-            'team_member_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('team_members', 'id')->where('service_plan_id', $servicePlan->id),
-            ],
-        ], [], [
-            'category_id' => 'categoría',
-            'performance_key' => 'tono',
-            'team_member_id' => 'integrante',
-        ]);
-
-        $servicePlan->songs()->updateExistingPivot($song->id, [
-            'category_id' => $validated['category_id'] ?? null,
-            'performance_key' => $validated['performance_key'] ?? null,
-            'team_member_id' => $validated['team_member_id'] ?? null,
-        ]);
-
-        return redirect()
-            ->route('service-plans.show', $servicePlan)
-            ->with('status', 'entry-updated');
-    }
-
-    public function detachSong(ServicePlan $servicePlan, Song $song): RedirectResponse
-    {
-        $this->authorizePlan($servicePlan);
-
-        $servicePlan->songs()->detach($song->id);
-
-        $this->renumberPlanSongs($servicePlan);
-
-        return redirect()
-            ->route('service-plans.show', $servicePlan)
-            ->with('status', 'song-detached');
-    }
-
-    public function reorder(Request $request, ServicePlan $servicePlan): JsonResponse
-    {
-        $this->authorizePlan($servicePlan);
-
-        $validated = $request->validate([
-            'order' => ['required', 'array', 'min:1'],
-            'order.*' => ['integer', 'distinct'],
-        ]);
-
-        $planSongIds = $servicePlan->songs()->pluck('songs.id')->all();
-
-        foreach ($validated['order'] as $songId) {
-            if (! in_array((int) $songId, $planSongIds, true)) {
-                abort(422, 'Canción no pertenece al plan.');
+                continue;
             }
-        }
 
-        if (count($validated['order']) !== count($planSongIds)) {
-            abort(422, 'Orden incompleto.');
-        }
-
-        DB::transaction(function () use ($servicePlan, $validated) {
-            foreach ($validated['order'] as $index => $songId) {
-                $servicePlan->songs()->updateExistingPivot($songId, ['order' => $index + 1]);
+            if ($type !== PlanEntry::TYPE_SONG) {
+                continue;
             }
-        });
 
-        return response()->json(['ok' => true]);
-    }
+            $songId = (int) ($entry['song_id'] ?? 0);
+            if ($songId <= 0 || in_array($songId, $usedSongIds, true)) {
+                continue;
+            }
 
-    public function storeMember(Request $request, ServicePlan $servicePlan): RedirectResponse
-    {
-        $this->authorizePlan($servicePlan);
+            $song = Song::query()->find($songId);
+            if (! $song) {
+                continue;
+            }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'voice_tone' => ['required', 'string', Rule::in(WorshipPlan::VOICE_TONES)],
-        ], [], [
-            'name' => 'nombre',
-            'voice_tone' => 'tono de voz',
-        ]);
+            $usedSongIds[] = $songId;
 
-        $servicePlan->teamMembers()->create([
-            'user_id' => auth()->id(),
-            'name' => $validated['name'],
-            'voice_tone' => $validated['voice_tone'],
-        ]);
-
-        return redirect()
-            ->route('service-plans.show', $servicePlan)
-            ->with('status', 'member-added');
-    }
-
-    private function renumberPlanSongs(ServicePlan $servicePlan): void
-    {
-        $songIds = $servicePlan->songs()
-            ->orderByPivot('order')
-            ->pluck('songs.id');
-
-        foreach ($songIds as $index => $songId) {
-            $servicePlan->songs()->updateExistingPivot($songId, ['order' => $index + 1]);
+            $plan->entries()->create([
+                'order' => $order++,
+                'type' => PlanEntry::TYPE_SONG,
+                'song_id' => $songId,
+                'category_id' => $entry['category_id'] ?? $song->category_id,
+                'performance_key' => $entry['performance_key'] ?? $song->key,
+                'contact_id' => $entry['contact_id'] ?? null,
+            ]);
         }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function parseEntriesPayload(mixed $raw): array
+    {
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($raw) ? $raw : [];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function entriesForBuilder(ServicePlan $plan): array
+    {
+        return $plan->entries->map(function (PlanEntry $entry) {
+            if ($entry->isSection()) {
+                return [
+                    'type' => PlanEntry::TYPE_SECTION,
+                    'section_title' => $entry->section_title,
+                ];
+            }
+
+            $song = $entry->song;
+
+            return [
+                'type' => PlanEntry::TYPE_SONG,
+                'song_id' => $entry->song_id,
+                'title' => $song?->title ?? '',
+                'artist' => $song?->artist ?? '',
+                'original_key' => $song?->key ?? '',
+                'performance_key' => $entry->performance_key ?? $song?->key,
+                'contact_id' => $entry->contact_id,
+                'category' => ($entry->category ?? $song?->category)?->name,
+            ];
+        })->values()->all();
     }
 
     private function authorizePlan(ServicePlan $servicePlan): void
@@ -344,31 +342,45 @@ class ServicePlanController extends Controller
         abort_unless($servicePlan->user_id === auth()->id(), 403);
     }
 
-    private function categoryRule(): \Illuminate\Validation\Rules\Exists
+    private function contactRule(): \Illuminate\Validation\Rules\Exists
     {
-        return Rule::exists('categories', 'id')->where(function ($query) {
-            $query->where(function ($inner) {
-                $inner->whereNull('user_id')
-                    ->orWhere('user_id', auth()->id());
-            });
-        });
+        return Rule::exists('contacts', 'id')->where('user_id', auth()->id());
     }
 
     /**
-     * @return array{servicePlan: ServicePlan, categoryMap: \Illuminate\Support\Collection, entries: array<int, array<string, mixed>>, diagramLibrary: array, allChordNames: array<int, string>}
+     * @return array{servicePlan: ServicePlan, categoryMap: \Illuminate\Support\Collection, contacts: \Illuminate\Support\Collection, entries: array<int, array<string, mixed>>, diagramLibrary: array, allChordNames: array<int, string>}
      */
     private function preparePlanExportData(ServicePlan $servicePlan): array
     {
         $servicePlan->load([
-            'teamMembers' => fn ($query) => $query->orderBy('name'),
-            'songs' => fn ($query) => $query->with(['category', 'chords'])->orderByPivot('order'),
+            'director',
+            'entries' => fn ($query) => $query->with(['song.category', 'song.chords', 'contact', 'category'])->orderBy('order'),
         ]);
 
         $categoryMap = Category::query()->forUser($servicePlan->user_id)->get()->keyBy('id');
+        $contactMap = Contact::query()->where('user_id', $servicePlan->user_id)->get()->keyBy('id');
         $allChordNames = [];
         $entries = [];
+        $songNumber = 0;
 
-        foreach ($servicePlan->songs as $song) {
+        foreach ($servicePlan->entries as $entry) {
+            if ($entry->isSection()) {
+                $entries[] = [
+                    'type' => PlanEntry::TYPE_SECTION,
+                    'order' => $entry->order,
+                    'section_title' => $entry->section_title,
+                ];
+
+                continue;
+            }
+
+            $song = $entry->song;
+            if (! $song) {
+                continue;
+            }
+
+            $songNumber++;
+
             $content = $song->chords->firstWhere('instrument', 'guitar')?->content
                 ?? $song->chords->firstWhere('instrument', 'keyboard')?->content
                 ?? '';
@@ -376,18 +388,26 @@ class ServicePlanController extends Controller
             $chordNames = $content !== '' ? ChordProParser::extractChordNames($content) : [];
             $allChordNames = array_merge($allChordNames, $chordNames);
 
-            $member = $servicePlan->teamMembers->firstWhere('id', $song->pivot->team_member_id);
-            $performanceKey = $song->pivot->performance_key ?? $song->key;
+            $contact = $contactMap[$entry->contact_id] ?? null;
+            $performanceKey = $entry->performance_key ?? $song->key;
+
+            $assigned = null;
+            if ($contact) {
+                $parts = array_filter([$contact->role, $contact->vocal_range, $contact->vocal_tone]);
+                $assigned = $contact->name.($parts ? ' ('.implode(' · ', $parts).')' : '');
+            }
 
             $entries[] = [
+                'type' => PlanEntry::TYPE_SONG,
                 'id' => $song->id,
-                'order' => $song->pivot->order,
+                'order' => $songNumber,
+                'list_order' => $entry->order,
                 'title' => $song->title,
                 'artist' => $song->artist,
                 'original_key' => $song->key,
                 'key' => $performanceKey,
-                'category' => ($categoryMap[$song->pivot->category_id] ?? $song->category)?->name,
-                'assigned' => $member ? $member->name.' ('.$member->voice_tone.')' : null,
+                'category' => ($categoryMap[$entry->category_id] ?? $song->category)?->name,
+                'assigned' => $assigned,
                 'content' => $content,
                 'chord_names' => $chordNames,
             ];
@@ -424,6 +444,7 @@ class ServicePlanController extends Controller
         return [
             'servicePlan' => $servicePlan,
             'categoryMap' => $categoryMap,
+            'contacts' => $contactMap->values(),
             'entries' => $entries,
             'diagramLibrary' => $diagramLibrary,
             'allChordNames' => $allChordNames,

@@ -82,19 +82,43 @@
                             <a href="{{ route('songs.create') }}" class="mt-2 block text-violet-400 hover:underline">Crear la primera</a>
                         </div>
                     @else
-                        <ul class="divide-y divide-white/5">
-                            @foreach ($recentSongs as $song)
-                                <li class="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02]">
-                                    <div class="min-w-0">
-                                        <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300 truncate block">
-                                            {{ $song->title }}
-                                        </a>
-                                        <p class="text-sm text-slate-500">{{ $song->artist }} · <span class="font-mono text-slate-400">{{ $song->key }}</span></p>
-                                    </div>
-                                    <a href="{{ route('songs.edit', $song) }}" class="shrink-0 text-xs text-slate-500 hover:text-violet-400">Editar</a>
-                                </li>
-                            @endforeach
-                        </ul>
+                        <x-responsive-data-list search-placeholder="Buscar…">
+                            <x-slot:cards>
+                                @foreach ($recentSongs as $song)
+                                    <x-data-list-card :search="$song->title . ' ' . $song->artist" class="!p-3">
+                                        <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $song->title }}</a>
+                                        <p class="mt-1 text-sm text-slate-500">{{ $song->artist }} · <span class="font-mono text-slate-400">{{ $song->key }}</span></p>
+                                        <a href="{{ route('songs.edit', $song) }}" class="mt-2 inline-block text-xs text-slate-500 hover:text-violet-400">Editar</a>
+                                    </x-data-list-card>
+                                @endforeach
+                            </x-slot:cards>
+                            <x-slot:table>
+                                <table data-datatable class="w-full">
+                                    <thead>
+                                        <tr>
+                                            <th>Título</th>
+                                            <th>Artista</th>
+                                            <th>Tono</th>
+                                            <th class="!text-right"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($recentSongs as $song)
+                                            <tr>
+                                                <td>
+                                                    <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $song->title }}</a>
+                                                </td>
+                                                <td class="text-slate-400">{{ $song->artist }}</td>
+                                                <td><span class="font-mono text-amber-300">{{ $song->key }}</span></td>
+                                                <td class="text-right">
+                                                    <a href="{{ route('songs.edit', $song) }}" class="text-xs text-slate-500 hover:text-violet-400">Editar</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </x-slot:table>
+                        </x-responsive-data-list>
                     @endif
                 </x-admin-card>
 
@@ -108,23 +132,53 @@
                             <a href="{{ route('service-plans.create') }}" class="mt-2 block text-violet-400 hover:underline">Crear el primero</a>
                         </div>
                     @else
-                        <ul class="divide-y divide-white/5">
-                            @foreach ($recentPlans as $plan)
-                                <li class="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02]">
-                                    <div class="min-w-0">
-                                        <a href="{{ route('service-plans.show', $plan) }}" class="font-medium text-slate-200 hover:text-violet-300 truncate block">
-                                            {{ $plan->title }}
-                                        </a>
-                                        <p class="text-sm text-slate-500">{{ $plan->date->format('d/m/Y') }} · {{ $plan->songs_count }} canciones</p>
-                                    </div>
-                                    @if ($plan->date->isToday())
-                                        <span class="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">Hoy</span>
-                                    @elseif ($plan->date->isFuture())
-                                        <span class="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Próximo</span>
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
+                        <x-responsive-data-list search-placeholder="Buscar…">
+                            <x-slot:cards>
+                                @foreach ($recentPlans as $plan)
+                                    <x-data-list-card :search="$plan->title" class="!p-3">
+                                        <a href="{{ route('service-plans.show', $plan) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $plan->title }}</a>
+                                        <p class="mt-1 text-sm text-slate-500">{{ $plan->date->format('d/m/Y') }} · {{ $plan->songs_count }} canciones</p>
+                                        @if ($plan->date->isToday())
+                                            <span class="mt-2 inline-block rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">Hoy</span>
+                                        @elseif ($plan->date->isFuture())
+                                            <span class="mt-2 inline-block rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Próximo</span>
+                                        @endif
+                                    </x-data-list-card>
+                                @endforeach
+                            </x-slot:cards>
+                            <x-slot:table>
+                                <table data-datatable class="w-full">
+                                    <thead>
+                                        <tr>
+                                            <th>Título</th>
+                                            <th>Fecha</th>
+                                            <th>Canciones</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($recentPlans as $plan)
+                                            <tr>
+                                                <td>
+                                                    <a href="{{ route('service-plans.show', $plan) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $plan->title }}</a>
+                                                </td>
+                                                <td class="text-slate-400">{{ $plan->date->format('d/m/Y') }}</td>
+                                                <td class="text-slate-400">{{ $plan->songs_count }}</td>
+                                                <td>
+                                                    @if ($plan->date->isToday())
+                                                        <span class="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">Hoy</span>
+                                                    @elseif ($plan->date->isFuture())
+                                                        <span class="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Próximo</span>
+                                                    @else
+                                                        <span class="text-slate-600">—</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </x-slot:table>
+                        </x-responsive-data-list>
                     @endif
                 </x-admin-card>
             </div>

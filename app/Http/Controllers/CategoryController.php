@@ -74,24 +74,38 @@ class CategoryController extends Controller
 
     private function authorizeCategory(Category $category): void
     {
-        abort_unless($category->isEditableBy(auth()->id()), 403);
+        $userId = auth()->id();
+
+        abort_unless(
+            $category->user_id === null || $category->user_id === $userId,
+            403
+        );
     }
 
-    private function uniqueSlug(string $name, int $userId, ?int $ignoreId = null): string
+    private function uniqueSlug(string $name, ?int $userId, ?int $ignoreId = null): string
     {
         $base = Str::slug($name);
         $slug = $base;
         $suffix = 1;
 
-        while (Category::query()
-            ->where('user_id', $userId)
-            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
-            ->where('slug', $slug)
-            ->exists()) {
+        while ($this->slugExists($slug, $userId, $ignoreId)) {
             $slug = $base.'-'.$suffix;
             $suffix++;
         }
 
         return $slug;
+    }
+
+    private function slugExists(string $slug, ?int $userId, ?int $ignoreId): bool
+    {
+        return Category::query()
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->when(
+                $userId === null,
+                fn ($q) => $q->whereNull('user_id'),
+                fn ($q) => $q->where('user_id', $userId)
+            )
+            ->where('slug', $slug)
+            ->exists();
     }
 }

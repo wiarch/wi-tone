@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChordBrowserController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ChordController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PageController;
@@ -37,6 +38,10 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('categories', CategoryController::class)->except(['show']);
 
+    Route::resource('contacts', ContactController::class)->except(['show']);
+
+    Route::get('service-plans/songs/search', [ServicePlanController::class, 'searchSongs'])
+        ->name('service-plans.songs.search');
     Route::resource('service-plans', ServicePlanController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('service-plans/{service_plan}/export', [ServicePlanController::class, 'export'])
         ->name('service-plans.export');
@@ -46,16 +51,8 @@ Route::middleware('auth')->group(function () {
         ->name('service-plans.publish');
     Route::delete('service-plans/{service_plan}/publish', [ServicePlanController::class, 'unpublish'])
         ->name('service-plans.unpublish');
-    Route::post('service-plans/{service_plan}/songs', [ServicePlanController::class, 'attachSong'])
-        ->name('service-plans.songs.attach');
-    Route::patch('service-plans/{service_plan}/songs/{song}', [ServicePlanController::class, 'updateSong'])
-        ->name('service-plans.songs.update');
-    Route::delete('service-plans/{service_plan}/songs/{song}', [ServicePlanController::class, 'detachSong'])
-        ->name('service-plans.songs.detach');
-    Route::post('service-plans/{service_plan}/reorder', [ServicePlanController::class, 'reorder'])
-        ->name('service-plans.reorder');
-    Route::post('service-plans/{service_plan}/members', [ServicePlanController::class, 'storeMember'])
-        ->name('service-plans.members.store');
+    Route::put('service-plans/{service_plan}/setlist', [ServicePlanController::class, 'syncSetlist'])
+        ->name('service-plans.setlist.sync');
 });
 
 require __DIR__.'/auth.php';

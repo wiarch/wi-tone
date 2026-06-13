@@ -23,26 +23,61 @@
                 <a href="{{ route('songs.create') }}" class="mt-2 block text-violet-400 hover:underline">Registrar una</a>
             </div>
         @else
-            <ul class="divide-y divide-white/5">
-                @foreach ($songs as $song)
-                    <li class="flex items-center justify-between px-5 py-4 hover:bg-white/[0.02]">
-                        <div class="min-w-0">
+            <x-responsive-data-list search-placeholder="Buscar canción…">
+                <x-slot:cards>
+                    @foreach ($songs as $song)
+                        <x-data-list-card :search="$song->title . ' ' . $song->artist . ' ' . $song->key . ' ' . ($song->category?->name ?? '')">
                             <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $song->title }}</a>
-                            <p class="text-sm text-slate-500">
-                                {{ $song->artist }} · Tono: <span class="font-mono text-slate-400">{{ $song->key }}</span>
+                            <p class="mt-1 text-sm text-slate-500">{{ $song->artist }}</p>
+                            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                                <span class="rounded-md bg-amber-500/10 px-2 py-0.5 font-mono text-amber-300">{{ $song->key }}</span>
                                 @if ($song->category)
-                                    · <span class="text-amber-400/90">{{ $song->category->name }}</span>
+                                    <span class="rounded-md bg-white/5 px-2 py-0.5 text-amber-400/90">{{ $song->category->name }}</span>
                                 @endif
-                            </p>
-                        </div>
-                        <div class="flex shrink-0 gap-4 text-sm">
-                            <a href="{{ route('songs.show', $song) }}" class="text-violet-400 hover:text-violet-300">Ver</a>
-                            <a href="{{ route('songs.edit', $song) }}" class="text-slate-500 hover:text-slate-300">Editar</a>
-                        </div>
-                    </li>
-                @endforeach
-            </ul>
-            <div class="border-t border-white/5 px-5 py-4">{{ $songs->links() }}</div>
+                            </div>
+                            <div class="mt-3 flex gap-3 text-sm">
+                                <a href="{{ route('songs.show', $song) }}" class="text-violet-400 hover:text-violet-300">Ver</a>
+                                <a href="{{ route('songs.edit', $song) }}" class="text-slate-500 hover:text-slate-300">Editar</a>
+                            </div>
+                        </x-data-list-card>
+                    @endforeach
+                </x-slot:cards>
+
+                <x-slot:table>
+                    <table data-datatable class="w-full">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Artista</th>
+                                <th>Tono</th>
+                                <th>Categoría</th>
+                                <th class="!text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($songs as $song)
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('songs.show', $song) }}" class="font-medium text-slate-200 hover:text-violet-300">{{ $song->title }}</a>
+                                    </td>
+                                    <td class="text-slate-400">{{ $song->artist }}</td>
+                                    <td><span class="font-mono text-amber-300">{{ $song->key }}</span></td>
+                                    <td class="text-slate-400">{{ $song->category?->name ?? '—' }}</td>
+                                    <td class="text-right">
+                                        <a href="{{ route('songs.show', $song) }}" class="text-violet-400 hover:text-violet-300">Ver</a>
+                                        <span class="mx-2 text-slate-700">·</span>
+                                        <a href="{{ route('songs.edit', $song) }}" class="text-slate-500 hover:text-slate-300">Editar</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </x-slot:table>
+
+                <x-slot:footer>
+                    <div class="px-5 py-4">{{ $songs->links() }}</div>
+                </x-slot:footer>
+            </x-responsive-data-list>
         @endif
     </x-admin-card>
 </x-app-layout>

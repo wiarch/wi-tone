@@ -118,8 +118,17 @@ function initVisualChordEditor(root) {
     let suppressLyricsRebuild = false;
     let chordDrag = null;
     let charWidthCache = null;
+    let renderTimer = null;
 
     const paletteChords = new Set();
+
+    function linesFromText(text) {
+        const normalized = String(text ?? '').replace(/\r\n/g, '\n');
+        if (normalized === '') {
+            return [''];
+        }
+        return normalized.split('\n');
+    }
 
     function getCharWidth(sampleEl) {
         if (charWidthCache) {
@@ -170,6 +179,24 @@ function initVisualChordEditor(root) {
         suppressLyricsRebuild = true;
         lyricsSource.value = blocksToLyricsText(blocks);
         suppressLyricsRebuild = false;
+    }
+
+    function afterBlocksChange({ syncTextarea = true } = {}) {
+        if (transposeSemitones === 0) {
+            originalBlocks = deepCloneBlocks(blocks);
+        }
+        if (syncTextarea) {
+            syncLyricsTextarea();
+        }
+        syncPalette();
+        renderAll();
+    }
+
+    function scheduleLyricsRebuild() {
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(() => {
+            rebuildLyricsFromText(lyricsSource.value);
+        }, 40);
     }
 
     function chordRowHtml(blockIndex, chordLine, minWidth = 0) {
@@ -231,8 +258,12 @@ function initVisualChordEditor(root) {
         transposeSemitones = 0;
 
         suppressLyricsRebuild = true;
-        lyricsSource.value = blocksToLyricsText(blocks);
+        lyricsSource.value = blocks.length ? blocksToLyricsText(blocks) : '';
         suppressLyricsRebuild = false;
+
+        if (!blocks.length) {
+            blocks = [{ type: 'pair', chordLine: '', lyricLine: '' }];
+        }
 
         if (blocks.length) {
             captureBaseline();
@@ -250,7 +281,7 @@ function initVisualChordEditor(root) {
         const items = [...paletteChords].sort((a, b) => a.localeCompare(b));
 
         if (!items.length) {
-            paletteEl.innerHTML = '<p class="text-xs text-slate-500">Los acordes aparecen al pegar el cifrado.</p>';
+            paletteEl.innerHTML = '<p class="text-xs text-slate-500">Busca acordes arriba o arrástralos a una línea ámbar.</p>';
             return;
         }
 
@@ -290,6 +321,9 @@ function initVisualChordEditor(root) {
             chords.push({ pos, name });
             applyChordsToBlock(block, resolveChordOverlaps(chords));
             paletteChords.add(name);
+            if (transposeSemitones === 0) {
+                originalBlocks = deepCloneBlocks(blocks);
+            }
             updateBlockDom(blockIndex);
             syncHiddenField();
             renderPalette();
@@ -397,26 +431,13 @@ function initVisualChordEditor(root) {
         canvas.querySelectorAll('[data-chord-row]').forEach((row) => {
             bindChordRow(row, Number(row.dataset.chordRow));
         });
-
-        canvas.querySelectorAll('[data-lyric-row]').forEach((el) => {
-            el.addEventListener('blur', () => {
-                const blockIndex = Number(el.dataset.lyricRow);
-                const block = blocks[blockIndex];
-                if (block?.type === 'pair') {
-                    block.lyricLine = el.textContent ?? '';
-                    if (transposeSemitones === 0) {
-                        originalBlocks = deepCloneBlocks(blocks);
-                    }
-                    syncLyricsTextarea();
-                    syncHiddenField();
-                }
-            });
-        });
     }
 
     function renderCanvas() {
-        if (!blocks.length) {
-            canvas.innerHTML = '<p class="font-mono text-sm text-slate-600">Pega el cifrado en el cuadro de letra arriba.</p>';
+        const pairBlocks = blocks.filter((b) => b.type === 'pair');
+
+        if (!pairBlocks.length) {
+            canvas.innerHTML = '<p class="font-mono text-sm text-slate-500">Escribe la letra a la izquierda. Aquí verás cada línea con sus acordes.</p>';
             syncHiddenField();
             return;
         }
@@ -424,20 +445,28 @@ function initVisualChordEditor(root) {
         canvas.innerHTML = blocks
             .map((block, blockIndex) => {
                 if (block.type === 'pair') {
-                    return `<div data-sheet-block="${blockIndex}" class="sheet-pair mb-5 rounded-lg border border-transparent p-1 hover:border-white/5">
-                        <div data-chord-slot>${chordRowHtml(blockIndex, block.chordLine, block.lyricLine.length)}</div>
+                    const lyricHtml = block.lyricLine
+                        ? escapeHtml(block.lyricLine)
+                        : '<span class="text-slate-600 italic">— línea vacía —</span>';
+
+                    return `<div data-sheet-block="${blockIndex}" class="sheet-pair mb-5 rounded-lg border border-transparent p-1">
+                        <div data-chord-slot>${chordRowHtml(blockIndex, block.chordLine, Math.max(block.lyricLine.length, 1))}</div>
                         <div
                             data-lyric-row="${blockIndex}"
-                            contenteditable="true"
-                            spellcheck="false"
-                            class="mt-1 whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-200 outline-none focus:rounded focus:bg-white/[0.03] focus:ring-1 focus:ring-violet-500/30"
-                        >${escapeHtml(block.lyricLine)}</div>
+                            class="mt-1 min-h-[1.25rem] whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-200"
+                        >${lyricHtml}</div>
                     </div>`;
                 }
 
                 if (block.type === 'chords') {
-                    return `<div data-sheet-block="${blockIndex}" class="sheet-chords mb-4 rounded-lg border border-transparent p-1 hover:border-white/5">
+                    return `<div data-sheet-block="${blockIndex}" class="sheet-chords mb-4 rounded-lg border border-transparent p-1">
                         <div data-chord-slot>${chordRowHtml(blockIndex, block.chordLine)}</div>
+                    </div>`;
+                }
+
+                if (block.type === 'lyrics') {
+                    return `<div data-sheet-block="${blockIndex}" class="sheet-lyrics mb-4 rounded-lg border border-transparent p-1">
+                        <div data-lyric-row="${blockIndex}" class="min-h-[1.25rem] whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-200">${escapeHtml(block.lyricLine)}</div>
                     </div>`;
                 }
 
@@ -512,14 +541,21 @@ function initVisualChordEditor(root) {
     }
 
     function rebuildLyricsFromText(text) {
-        const newLines = text.replace(/\r\n/g, '\n').split('\n');
-        const pairs = blocks.filter((b) => b.type === 'pair');
+        const newLines = linesFromText(text);
+        const existingPairs = blocks.filter((b) => b.type === 'pair');
+        const nonPairBlocks = blocks.filter((b) => b.type !== 'pair');
 
-        pairs.forEach((block, index) => {
-            if (newLines[index] !== undefined) {
-                block.lyricLine = newLines[index];
-            }
-        });
+        const newPairs = newLines.map((line, index) => ({
+            type: 'pair',
+            chordLine: existingPairs[index]?.chordLine ?? '',
+            lyricLine: line,
+        }));
+
+        blocks = [...newPairs, ...nonPairBlocks];
+
+        if (!originalBlocks && blocks.some((b) => b.type === 'pair' && (b.lyricLine || b.chordLine))) {
+            captureBaseline();
+        }
 
         if (transposeSemitones && originalBlocks) {
             originalBlocks = deepCloneBlocks(blocks);
@@ -527,7 +563,9 @@ function initVisualChordEditor(root) {
         }
 
         syncPalette();
-        renderAll();
+        renderPalette();
+        renderCanvas();
+        syncHiddenField();
     }
 
     function openFloater() {
@@ -583,7 +621,7 @@ function initVisualChordEditor(root) {
                 if (name) {
                     paletteChords.add(name);
                     renderPalette();
-                    showImportStatus(`Acorde ${name} en paleta — arrástralo a una línea ámbar`);
+                    showImportStatus(`Acorde ${name} listo — arrástralo a la línea ámbar`);
                 }
                 closeFloater();
             });
@@ -626,17 +664,7 @@ function initVisualChordEditor(root) {
         if (suppressLyricsRebuild) {
             return;
         }
-
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            const text = lyricsSource.value;
-            if (tryImportChordSheet(text)) {
-                return;
-            }
-            if (blocks.some((b) => b.type === 'pair')) {
-                rebuildLyricsFromText(text);
-            }
-        }, 300);
+        scheduleLyricsRebuild();
     });
 
     root.querySelector('[data-add-chord]')?.addEventListener('click', openFloater);

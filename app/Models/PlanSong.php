@@ -17,7 +17,13 @@ class PlanSong extends Pivot
             'order' => 'integer',
             'team_member_id' => 'integer',
             'category_id' => 'integer',
+            'contact_id' => 'integer',
         ];
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
     }
 
     public function category(): BelongsTo

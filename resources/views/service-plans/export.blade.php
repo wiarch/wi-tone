@@ -139,7 +139,18 @@
                     <p class="mt-3 text-sm plan-export-lyric">{{ $servicePlan->notes }}</p>
                 @endif
 
-                @if ($servicePlan->teamMembers->isNotEmpty())
+                @if (($contacts ?? collect())->isNotEmpty())
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        @foreach ($contacts as $contact)
+                            <span class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm">
+                                <strong>{{ $contact->name }}</strong>
+                                @if ($contact->role || $contact->vocal_tone)
+                                    <span class="text-gray-500">· {{ collect([$contact->role, $contact->vocal_tone])->filter()->join(' · ') }}</span>
+                                @endif
+                            </span>
+                        @endforeach
+                    </div>
+                @elseif ($servicePlan->teamMembers->isNotEmpty())
                     <div class="mt-4 flex flex-wrap gap-2">
                         @foreach ($servicePlan->teamMembers as $member)
                             <span class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm">

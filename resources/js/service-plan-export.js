@@ -142,7 +142,9 @@ function initServicePlanExport() {
             return;
         }
 
-        if (!state.showIndex || !entries.length) {
+        const songEntries = entries.filter((e) => e.type !== 'section');
+
+        if (!state.showIndex || !songEntries.length) {
             indexEl.classList.add('hidden');
             return;
         }
@@ -161,7 +163,7 @@ function initServicePlanExport() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${entries.map((entry) => `
+                    ${songEntries.map((entry) => `
                         <tr class="border-b border-gray-100">
                             <td class="py-2 pr-3 font-semibold">${entry.order}</td>
                             <td class="py-2 pr-3 text-gray-600">${escapeHtml(entry.category || '—')}</td>
@@ -181,42 +183,54 @@ function initServicePlanExport() {
             return;
         }
 
-        if (!entries.length) {
+        const hasContent = entries.some((e) => e.type === 'section' || e.type === 'song');
+
+        if (!hasContent) {
             songsEl.innerHTML = '<p class="text-sm text-gray-500">Sin canciones en el plan.</p>';
             return;
         }
 
-        if (state.viewMode === 'share') {
-            songsEl.innerHTML = entries.map((entry) => `
-                <details class="plan-share-item mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
-                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-700">${entry.order}</span>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate font-semibold plan-export-title">${escapeHtml(entry.title)}</p>
-                            <p class="truncate text-sm plan-export-artist">${escapeHtml(entry.artist)} · <span class="font-mono plan-export-chord">${escapeHtml(entry.key || '—')}</span>${entry.category ? ` · ${escapeHtml(entry.category)}` : ''}</p>
-                        </div>
-                        <span class="text-xs text-gray-400">Ver cifrado</span>
-                    </summary>
-                    <div class="border-t border-gray-100 px-4 py-4">${renderSongSheet(entry)}</div>
-                </details>
-            `).join('');
-            return;
-        }
+        let songNumber = 0;
 
-        songsEl.innerHTML = entries.map((entry) => `
-            <section class="plan-print-song mb-12 break-inside-avoid">
-                <header class="mb-4 border-b border-gray-200 pb-3">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">#${entry.order}${entry.category ? ` · ${escapeHtml(entry.category)}` : ''}</p>
-                    <h2 class="mt-1 text-2xl font-bold plan-export-title">${escapeHtml(entry.title)}</h2>
-                    <p class="text-lg font-semibold plan-export-artist">${escapeHtml(entry.artist)}</p>
-                    <p class="mt-1 text-sm text-gray-600">
-                        Tono: <span class="font-mono font-semibold plan-export-chord">${escapeHtml(entry.key || '—')}</span>
-                        ${entry.assigned ? ` · ${escapeHtml(entry.assigned)}` : ''}
-                    </p>
-                </header>
-                ${renderSongSheet(entry)}
-            </section>
-        `).join('');
+        songsEl.innerHTML = entries
+            .map((entry) => {
+                if (entry.type === 'section') {
+                    return `<div class="plan-section-heading mb-6 mt-8 border-b-2 border-gray-300 pb-2">
+                        <h2 class="text-xl font-bold uppercase tracking-wide text-gray-800">${escapeHtml(entry.section_title)}</h2>
+                    </div>`;
+                }
+
+                songNumber += 1;
+                const num = songNumber;
+
+                if (state.viewMode === 'share') {
+                    return `<details class="plan-share-item mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-700">${num}</span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate font-semibold plan-export-title">${escapeHtml(entry.title)}</p>
+                                <p class="truncate text-sm plan-export-artist">${escapeHtml(entry.artist)} · <span class="font-mono plan-export-chord">${escapeHtml(entry.key || '—')}</span>${entry.category ? ` · ${escapeHtml(entry.category)}` : ''}</p>
+                            </div>
+                            <span class="text-xs text-gray-400">Ver cifrado</span>
+                        </summary>
+                        <div class="border-t border-gray-100 px-4 py-4">${renderSongSheet(entry)}</div>
+                    </details>`;
+                }
+
+                return `<section class="plan-print-song mb-12 break-inside-avoid">
+                    <header class="mb-4 border-b border-gray-200 pb-3">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">#${num}${entry.category ? ` · ${escapeHtml(entry.category)}` : ''}</p>
+                        <h2 class="mt-1 text-2xl font-bold plan-export-title">${escapeHtml(entry.title)}</h2>
+                        <p class="text-lg font-semibold plan-export-artist">${escapeHtml(entry.artist)}</p>
+                        <p class="mt-1 text-sm text-gray-600">
+                            Tono: <span class="font-mono font-semibold plan-export-chord">${escapeHtml(entry.key || '—')}</span>
+                            ${entry.assigned ? ` · ${escapeHtml(entry.assigned)}` : ''}
+                        </p>
+                    </header>
+                    ${renderSongSheet(entry)}
+                </section>`;
+            })
+            .join('');
     }
 
     function renderDiagrams() {
@@ -224,7 +238,7 @@ function initServicePlanExport() {
             return;
         }
 
-        const names = [...new Set(entries.flatMap((e) => e.chord_names || []))];
+        const names = [...new Set(entries.filter((e) => e.type !== 'section').flatMap((e) => e.chord_names || []))];
 
         if (!state.showDiagrams || !names.length) {
             diagramsSection.classList.add('hidden');

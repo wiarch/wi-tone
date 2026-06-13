@@ -14,6 +14,7 @@ export default defineConfig({
                 'resources/js/song-performance.js',
                 'resources/js/song-export.js',
                 'resources/js/service-plan-show.js',
+                'resources/js/service-plan-builder.js',
                 'resources/js/service-plan-export.js',
             ],
             refresh: true,
