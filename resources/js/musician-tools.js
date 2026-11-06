@@ -61,9 +61,8 @@ function getScaleChords(rootEn) {
 
 function initTuner(root) {
     const tuner = root.querySelector('[data-tuner]');
-    if (!tuner) {
-        return;
-    }
+    if (!tuner || tuner.dataset.initialized === 'true') return;
+    tuner.dataset.initialized = 'true';
 
     const startBtn = tuner.querySelector('[data-tuner-mic-start]');
     const stopBtn = tuner.querySelector('[data-tuner-mic-stop]');
@@ -73,62 +72,117 @@ function initTuner(root) {
     const freqEl = tuner.querySelector('[data-tuner-freq]');
     const centsEl = tuner.querySelector('[data-tuner-cents]');
     const instrumentSelect = tuner.querySelector('[data-tuner-instrument]');
+    const tuningSelect = tuner.querySelector('[data-tuner-tuning]');
     const stringsContainer = tuner.querySelector('[data-tuner-strings]');
 
     let audioCtx = null;
     let analyser = null;
+    let sourceNode = null;
     let mediaStream = null;
     let rafId = null;
     let earCtx = null;
+    let isStarting = false;
+    let lastAnalysisAt = 0;
+    let selectedTuningId = 'standard';
+
+    const needleBase = 'absolute bottom-2 left-1/2 h-[calc(100%-0.5rem)] w-0.5 origin-bottom -translate-x-1/2 rounded-full transition-transform duration-75';
 
     function getEarCtx() {
-        if (!earCtx) {
-            earCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error('Web Audio API no está disponible.');
+        if (!earCtx || earCtx.state === 'closed') earCtx = new AudioContextClass();
         return earCtx;
     }
 
-    function playTone(freq, label) {
-        const ctx = getEarCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.5);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.5);
-        noteEl.textContent = label;
-        freqEl.textContent = `${freq.toFixed(1)} Hz`;
-        centsEl.textContent = 'Referencia por oído';
-        needle.style.transform = 'translateX(-50%) rotate(0deg)';
+    function playTone(frequency, label) {
+        try {
+            const ctx = getEarCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.4);
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 1.4);
+            noteEl.textContent = label;
+            freqEl.textContent = `${frequency.toFixed(2)} Hz`;
+            centsEl.textContent = 'Tono de referencia';
+            centsEl.className = 'text-xs text-slate-400';
+            needle.style.transform = 'translateX(-50%) rotate(0deg)';
+        } catch {
+            statusEl.textContent = 'No se pudo reproducir el tono de referencia en este navegador.';
+        }
+    }
+
+    function renderReferenceStrings() {
+        if (!stringsContainer) return;
+
+        const instrumentId = instrumentSelect?.value ?? 'guitar';
+        const preset = getTuningPreset(instrumentId, selectedTuningId);
+        stringsContainer.replaceChildren();
+
+        preset.strings.forEach((string, index) => {
+            const frequency = noteToFrequency(string.note, string.octave);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.tunerString = String(index);
+            button.className = 'rounded-lg border border-white/10 bg-white/5 py-2 font-mono text-xs text-violet-300 transition hover:border-violet-500/40 hover:bg-violet-600/20';
+            button.textContent = string.label;
+            button.title = `Reproducir referencia ${string.note}${string.octave}`;
+            button.setAttribute('aria-label', `Reproducir referencia ${string.note}${string.octave}`);
+            button.addEventListener('click', () => playTone(frequency, `${string.note}${string.octave}`));
+            stringsContainer.appendChild(button);
+        });
+    }
+
+    function renderTuningOptions() {
+        if (!tuningSelect) {
+            renderReferenceStrings();
+            return;
+        }
+
+        const instrument = getInstrumentPreset(instrumentSelect?.value ?? 'guitar');
+        tuningSelect.replaceChildren();
+
+        instrument.tunings.forEach((tuning) => {
+            const option = document.createElement('option');
+            option.value = tuning.id;
+            option.textContent = tuning.name;
+            tuningSelect.appendChild(option);
+        });
+
+        if (!instrument.tunings.some((tuning) => tuning.id === selectedTuningId)) {
+            selectedTuningId = instrument.tunings[0]?.id ?? 'standard';
+        }
+        tuningSelect.value = selectedTuningId;
+        renderReferenceStrings();
     }
 
     function updateUI(detected) {
         if (!detected) {
             noteEl.textContent = '—';
             freqEl.textContent = '0 Hz';
-            centsEl.textContent = 'Sin señal';
+            centsEl.textContent = 'Sin señal estable';
+            centsEl.className = 'text-xs text-slate-400';
             needle.style.transform = 'translateX(-50%) rotate(0deg)';
+            needle.className = `${needleBase} bg-violet-400`;
             return;
         }
 
         const info = freqToNote(detected.frequency);
-        if (!info) {
-            return;
-        }
+        if (!info) return;
 
         noteEl.textContent = `${info.note}${info.octave}`;
-        freqEl.textContent = `${detected.frequency.toFixed(1)} Hz`;
+        freqEl.textContent = `${detected.frequency.toFixed(2)} Hz`;
 
         const cents = info.cents;
         const rotation = Math.max(-45, Math.min(45, cents * 0.9));
         needle.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
-
-        const needleBase = 'absolute bottom-2 left-1/2 h-[calc(100%-0.5rem)] w-0.5 origin-bottom -translate-x-1/2 rounded-full transition-transform duration-75';
 
         if (Math.abs(cents) <= 5) {
             centsEl.textContent = '✓ Afinado';
@@ -145,83 +199,109 @@ function initTuner(root) {
         }
     }
 
-    function tick() {
-        if (!analyser) {
-            return;
+    function tick(timestamp) {
+        if (!analyser || !audioCtx) return;
+
+        if (timestamp - lastAnalysisAt >= 50) {
+            lastAnalysisAt = timestamp;
+            const buffer = new Float32Array(analyser.fftSize);
+            analyser.getFloatTimeDomainData(buffer);
+            updateUI(detectPitch(buffer, audioCtx.sampleRate));
         }
-        const buffer = new Float32Array(analyser.fftSize);
-        analyser.getFloatTimeDomainData(buffer);
-        updateUI(detectPitch(buffer, audioCtx.sampleRate));
+
         rafId = requestAnimationFrame(tick);
     }
 
     async function startMic() {
+        if (isStarting || mediaStream) return;
+
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!navigator.mediaDevices?.getUserMedia || !AudioContextClass) {
+            statusEl.textContent = 'Este navegador no admite el acceso al micrófono o Web Audio API. Usa los tonos de referencia.';
+            return;
+        }
+
+        isStarting = true;
+        startBtn.disabled = true;
+        statusEl.textContent = 'Solicitando permiso para usar el micrófono…';
+
         try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioCtx.createMediaStreamSource(mediaStream);
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                },
+            });
+            audioCtx = new AudioContextClass();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            sourceNode = audioCtx.createMediaStreamSource(mediaStream);
             analyser = audioCtx.createAnalyser();
             analyser.fftSize = 8192;
-            source.connect(analyser);
+            analyser.smoothingTimeConstant = 0;
+            sourceNode.connect(analyser);
+            lastAnalysisAt = 0;
+
             startBtn.classList.add('hidden');
             stopBtn.classList.remove('hidden');
-            statusEl.textContent = 'Escuchando… toca una cuerda cerca del micrófono.';
-            tick();
+            statusEl.textContent = 'Escuchando. Toca una sola cuerda cerca del micrófono.';
+            rafId = requestAnimationFrame(tick);
         } catch (error) {
             mediaStream?.getTracks().forEach((track) => track.stop());
             mediaStream = null;
-            audioCtx?.close();
-            audioCtx = null;
+            sourceNode?.disconnect();
+            sourceNode = null;
             analyser = null;
-            const message = error?.name === 'NotAllowedError'
-                ? 'Permiso de micrófono denegado. Puedes usar el modo por oído.'
-                : 'No se pudo iniciar el micrófono. Comprueba el dispositivo y usa el modo por oído.';
-            statusEl.textContent = message;
+            if (audioCtx && audioCtx.state !== 'closed') await audioCtx.close();
+            audioCtx = null;
+
+            const messages = {
+                NotAllowedError: 'Permiso de micrófono denegado. Habilítalo en el navegador o usa los tonos de referencia.',
+                NotFoundError: 'No se encontró un micrófono conectado.',
+                NotReadableError: 'El micrófono está siendo utilizado por otra aplicación.',
+                SecurityError: 'El navegador bloqueó el micrófono. Comprueba que estás usando HTTPS o localhost.',
+            };
+            statusEl.textContent = messages[error?.name] || 'No se pudo iniciar el micrófono. Comprueba el dispositivo y usa el modo por oído.';
+        } finally {
+            isStarting = false;
+            startBtn.disabled = false;
         }
     }
 
-    function stopMic() {
-        if (rafId) {
+    async function stopMic() {
+        if (rafId !== null) {
             cancelAnimationFrame(rafId);
             rafId = null;
         }
-        mediaStream?.getTracks().forEach((t) => t.stop());
+
+        mediaStream?.getTracks().forEach((track) => track.stop());
         mediaStream = null;
-        audioCtx?.close();
-        audioCtx = null;
+        sourceNode?.disconnect();
+        sourceNode = null;
         analyser = null;
+
+        if (audioCtx && audioCtx.state !== 'closed') await audioCtx.close();
+        audioCtx = null;
+
         startBtn.classList.remove('hidden');
         stopBtn.classList.add('hidden');
         statusEl.textContent = 'Micrófono detenido.';
         updateUI(null);
     }
 
+    instrumentSelect?.addEventListener('change', () => {
+        selectedTuningId = 'standard';
+        renderTuningOptions();
+    });
+    tuningSelect?.addEventListener('change', () => {
+        selectedTuningId = tuningSelect.value;
+        renderReferenceStrings();
+    });
     startBtn?.addEventListener('click', startMic);
     stopBtn?.addEventListener('click', stopMic);
+    window.addEventListener('pagehide', stopMic, { once: true });
 
-    function renderReferenceStrings() {
-        if (!stringsContainer) return;
-
-        const preset = getInstrumentPreset(instrumentSelect?.value ?? 'guitar');
-        const tuning = preset.tunings[0];
-        stringsContainer.replaceChildren();
-
-        tuning.strings.forEach((string) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.dataset.tunerString = string.label;
-            button.className = 'rounded-lg border border-white/10 bg-white/5 py-2 font-mono text-xs text-violet-300 transition hover:border-violet-500/40 hover:bg-violet-600/20';
-            button.textContent = string.label;
-            button.title = `Reproducir referencia ${string.note}${string.octave}`;
-            button.addEventListener('click', () => {
-                playTone(noteToFrequency(string.note, string.octave), `${string.note}${string.octave}`);
-            });
-            stringsContainer.appendChild(button);
-        });
-    }
-
-    instrumentSelect?.addEventListener('change', renderReferenceStrings);
-    renderReferenceStrings();
+    renderTuningOptions();
 }
 
 function initMetronome(root) {
