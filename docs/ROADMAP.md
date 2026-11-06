@@ -12,23 +12,26 @@ This roadmap separates existing functionality from planned work. A roadmap item 
 
 ## Phase 1 — Reliable core tuner
 
-- [ ] Extract pitch and note calculations into independently testable modules.
-- [ ] Add deterministic tests with generated reference frequencies.
-- [ ] Improve fundamental-frequency estimation and confidence handling.
+- [x] Extract pitch and note calculations into an independently testable module.
+- [x] Add deterministic tests with generated reference frequencies.
+- [x] Implement normalized autocorrelation with confidence and signal-level checks.
+- [x] Add downsampled analysis to reduce per-frame CPU cost.
+- [ ] Improve harmonic rejection and temporal confidence handling.
 - [ ] Add smoothing/hysteresis to reduce unstable visual updates.
 - [ ] Handle silence, noise, weak input, clipping and multiple simultaneous notes.
-- [ ] Ensure complete microphone and AudioContext cleanup.
+- [x] Ensure microphone tracks and audio nodes are released when stopping the tuner or leaving the page.
 - [ ] Improve permission, unsupported-browser and device-error states.
 - [ ] Validate tuning behavior on real guitar strings across a range of devices.
 
 ## Phase 2 — Instruments and presets
 
-- [ ] Introduce a data-driven instrument/tuning preset model.
-- [ ] Add standard six-string guitar tuning.
-- [ ] Add standard four-string bass tuning.
+- [x] Introduce a data-driven instrument/tuning preset model.
+- [x] Add standard six-string guitar tuning.
+- [x] Add standard four-string bass tuning.
+- [x] Add Drop D reference presets for guitar and bass.
 - [ ] Add chromatic and string-by-string preset modes.
-- [ ] Add alternative guitar tunings.
-- [ ] Add alternative bass tunings.
+- [ ] Expand alternative guitar tunings beyond the initial Drop D preset.
+- [ ] Expand alternative bass tunings beyond the initial Drop D preset.
 - [ ] Make A4 reference pitch configurable.
 - [ ] Add custom tuning profiles after preset behavior is stable.
 
