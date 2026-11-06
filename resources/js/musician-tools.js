@@ -3,7 +3,9 @@
  */
 
 import { detectPitch } from './music/pitch-detection.js';
-import { freqToNote, getInstrumentPreset, noteToFrequency } from './music/tuning.js';
+import { NOTE_NAMES, freqToNote, getInstrumentPreset, noteToFrequency } from './music/tuning.js';
+
+const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 const CIRCLE_KEYS = [
     { major: 'Do', majorEn: 'C', minor: 'Lam', minorEn: 'Am' },
