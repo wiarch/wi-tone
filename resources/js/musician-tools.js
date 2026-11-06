@@ -192,8 +192,12 @@ function initTuner(root) {
             lastAnalysisAt = timestamp;
             const buffer = new Float32Array(analyser.fftSize);
             analyser.getFloatTimeDomainData(buffer);
+            // Analyze every second sample to reduce CPU cost while retaining
+            // enough cycles for the low E/D notes of a standard/drop-D bass.
+            const analysisBuffer = new Float32Array(buffer.length / 2);
+            for (let i = 0; i < analysisBuffer.length; i++) analysisBuffer[i] = buffer[i * 2];
             const minFrequency = selectedInstrument === 'bass' ? 35 : 60;
-            const result = detectPitch(buffer, audioCtx.sampleRate, { minFrequency, maxFrequency: 1000 });
+            const result = detectPitch(analysisBuffer, audioCtx.sampleRate / 2, { minFrequency, maxFrequency: 1000 });
             updateUI(result);
         }
         rafId = requestAnimationFrame(tick);
@@ -283,6 +287,7 @@ function initTuner(root) {
     });
     startBtn?.addEventListener('click', startMic);
     stopBtn?.addEventListener('click', stopMic);
+    window.addEventListener('pagehide', stopMic, { once: true });
 
     renderTunings();
 }
