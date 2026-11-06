@@ -3,7 +3,7 @@
  */
 
 import { detectPitch } from './music/pitch-detection.js';
-import { NOTE_NAMES, freqToNote, getInstrumentPreset, noteToFrequency } from './music/tuning.js';
+import { NOTE_NAMES, freqToNote, getInstrumentPreset, getTuningPreset, noteToFrequency } from './music/tuning.js';
 
 const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
