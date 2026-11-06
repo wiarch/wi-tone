@@ -44,7 +44,7 @@ A metronome and selected theory/reference utilities complement the tuner without
 ### Existing capabilities in the repository
 - Chromatic pitch detection through Web Audio API using normalized autocorrelation.
 - Frequency, note, octave and cents deviation display.
-- Quality threshold to reject weak or unstable signal estimates.
+- Quality threshold to reject weak or low-confidence signal estimates.
 - Instrument selector for guitar and bass.
 - Standard and Drop D reference presets for guitar and bass.
 - Manual reference tones for each string in the selected preset.
