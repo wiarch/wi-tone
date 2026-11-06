@@ -17,8 +17,9 @@ This roadmap separates existing functionality from planned work. A roadmap item 
 - [x] Introduce a YIN-style detector with a signal clarity estimate; real-device validation remains pending.
 - [ ] Add smoothing/hysteresis to reduce unstable visual updates.
 - [ ] Handle silence, noise, weak input, clipping and multiple simultaneous notes.
-- [ ] Ensure complete microphone and AudioContext cleanup.
-- [ ] Improve permission, unsupported-browser and device-error states.
+- [x] Release microphone tracks and audio nodes when stopping the tuner or leaving the page.
+- [x] Add initial unsupported-browser, permission-denied and microphone-device error states.
+- [ ] Expand browser compatibility and device recovery handling.
 - [ ] Validate tuning behavior on real guitar strings across a range of devices.
 
 ## Phase 2 — Instruments and presets
@@ -26,9 +27,10 @@ This roadmap separates existing functionality from planned work. A roadmap item 
 - [x] Introduce a data-driven instrument/tuning preset model.
 - [x] Add standard six-string guitar tuning.
 - [x] Add standard four-string bass tuning.
-- [ ] Add chromatic and string-by-string preset modes.
-- [ ] Add alternative guitar tunings.
-- [ ] Add alternative bass tunings.
+- [x] Add selectable Drop D reference tunings for guitar and bass.
+- [ ] Add chromatic and string-by-string target comparison modes.
+- [ ] Expand alternative guitar tunings beyond Drop D.
+- [ ] Expand alternative bass tunings beyond Drop D.
 - [ ] Make A4 reference pitch configurable.
 - [ ] Add custom tuning profiles after preset behavior is stable.
 
