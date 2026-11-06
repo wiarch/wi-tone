@@ -10,10 +10,17 @@
 
     <div data-tuner-page class="mx-auto max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0c1222] p-6">
         <div data-tuner class="space-y-4">
-            <div class="flex flex-wrap gap-2">
+            <div class="mb-3 flex flex-wrap items-center gap-2">
                 <button type="button" data-tuner-mic-start class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500">Activar micrófono</button>
                 <button type="button" data-tuner-mic-stop class="hidden rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5">Detener</button>
             </div>
+            <label class="flex items-center gap-2 text-xs text-slate-400">
+                Instrumento
+                <select data-tuner-instrument class="rounded-lg border border-white/10 bg-[#141c2e] px-2 py-1.5 text-xs text-white">
+                    <option value="guitar">Guitarra</option>
+                    <option value="bass">Bajo</option>
+                </select>
+            </label>
             <p data-tuner-status class="text-xs text-slate-500">Modo micrófono: detecta la frecuencia en tiempo real.</p>
 
             <div class="relative mx-auto max-w-[260px]">
@@ -37,15 +44,7 @@
 
             <div>
                 <p class="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">Modo silencioso / por oído</p>
-                <div class="grid grid-cols-6 gap-1.5">
-                    @foreach (['E', 'A', 'D', 'G', 'B', 'e'] as $string)
-                        <button
-                            type="button"
-                            data-tuner-string="{{ $string }}"
-                            class="rounded-lg border border-white/10 bg-white/5 py-2 font-mono text-xs text-violet-300 transition hover:border-violet-500/40 hover:bg-violet-600/20"
-                        >{{ $string }}</button>
-                    @endforeach
-                </div>
+                <div data-tuner-strings class="grid grid-cols-6 gap-1.5"></div>
             </div>
         </div>
     </div>
