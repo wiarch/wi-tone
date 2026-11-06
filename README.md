@@ -81,9 +81,9 @@ npm run build
 
 Pruebas del motor musical:
 
-\`\`\`bash
+```bash
 npm run test:music
-\`\`\`
+```
 
 Inicia el entorno de desarrollo:
 
