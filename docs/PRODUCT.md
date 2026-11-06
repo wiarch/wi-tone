@@ -42,10 +42,12 @@ A metronome and selected theory/reference utilities complement the tuner without
 ## 5. Scope
 
 ### Existing capabilities in the repository
-- Basic chromatic pitch detection through Web Audio API.
-- Note and frequency display.
-- Cents deviation and a visual needle.
-- Manual reference tones for standard guitar strings.
+- Chromatic pitch detection through Web Audio API using normalized autocorrelation.
+- Frequency, note, octave and cents deviation display.
+- Quality threshold to reject weak or unstable signal estimates.
+- Instrument selector for guitar and bass.
+- Standard and Drop D reference presets for guitar and bass.
+- Manual reference tones for each string in the selected preset.
 - Metronome with adjustable tempo and selected time signatures.
 - Circle-of-fifths utility.
 - Laravel authentication and account scaffolding.
