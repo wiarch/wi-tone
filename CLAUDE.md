@@ -26,7 +26,7 @@ Do not introduce a frontend framework or major dependency without a clear archit
 ## Existing implementation
 
 - `resources/views/tools/tuner.blade.php`: tuner interface.
-- `resources/js/musician-tools.js`: current tuner, pitch detection, reference tones, metronome and circle-of-fifths logic.
+- `resources/js/musician-tools.js`: tuner UI integration, reference tones, metronome and circle-of-fifths logic.\n- `resources/js/music/pitch-detection.js`: YIN-style fundamental-frequency estimator.\n- `resources/js/music/tuning.js`: note/frequency calculations and instrument presets.
 - `resources/views/tools/metronome.blade.php`: metronome interface.
 - `routes/web.php`: current routes, including the tuner and metronome.
 - Existing song, chord, contact and service-plan modules are legacy scope. Do not delete or rewrite them as part of unrelated tuner work.
@@ -38,7 +38,7 @@ The current tuner is a useful starting point, not a finished professional-grade 
 1. Inspect the relevant files, routes, models, migrations and tests before changing behavior.
 2. Preserve existing working functionality unless the task explicitly authorizes a migration or removal.
 3. Keep pitch detection and note/frequency calculations testable and separated from DOM manipulation as the codebase evolves.
-4. Prefer small, focused modules over adding more unrelated responsibilities to `musician-tools.js`.
+4. Keep pitch detection and music calculations in `resources/js/music/`; do not move them back into `musician-tools.js`.
 5. Use semantic HTML, keyboard-accessible controls, responsive layouts and clear permission/error states.
 6. Handle missing browser APIs, denied microphone permission, unavailable devices and interrupted audio contexts gracefully.
 7. Always stop microphone tracks, animation frames, timers and audio resources when the tuner stops or is disposed.
