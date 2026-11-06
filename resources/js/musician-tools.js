@@ -165,8 +165,16 @@ function initTuner(root) {
             stopBtn.classList.remove('hidden');
             statusEl.textContent = 'Escuchando… toca una cuerda cerca del micrófono.';
             tick();
-        } catch {
-            statusEl.textContent = 'No se pudo acceder al micrófono. Usa el modo por oído.';
+        } catch (error) {
+            mediaStream?.getTracks().forEach((track) => track.stop());
+            mediaStream = null;
+            audioCtx?.close();
+            audioCtx = null;
+            analyser = null;
+            const message = error?.name === 'NotAllowedError'
+                ? 'Permiso de micrófono denegado. Puedes usar el modo por oído.'
+                : 'No se pudo iniciar el micrófono. Comprueba el dispositivo y usa el modo por oído.';
+            statusEl.textContent = message;
         }
     }
 
