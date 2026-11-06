@@ -20,6 +20,17 @@ export const INSTRUMENT_PRESETS = {
                     { id: 'E4', label: 'e', note: 'E4', frequency: 329.6276 },
                 ],
             },
+            dropD: {
+                label: 'Drop D (D A D G B E)',
+                strings: [
+                    { id: 'D2', label: 'D', note: 'D2', frequency: 73.4162 },
+                    { id: 'A2', label: 'A', note: 'A2', frequency: 110.0 },
+                    { id: 'D3', label: 'D', note: 'D3', frequency: 146.8324 },
+                    { id: 'G3', label: 'G', note: 'G3', frequency: 195.9977 },
+                    { id: 'B3', label: 'B', note: 'B3', frequency: 246.9417 },
+                    { id: 'E4', label: 'e', note: 'E4', frequency: 329.6276 },
+                ],
+            },
         },
     },
     bass: {
@@ -29,6 +40,15 @@ export const INSTRUMENT_PRESETS = {
                 label: 'Estándar (E A D G)',
                 strings: [
                     { id: 'E1', label: 'E', note: 'E1', frequency: 41.2034 },
+                    { id: 'A1', label: 'A', note: 'A1', frequency: 55.0 },
+                    { id: 'D2', label: 'D', note: 'D2', frequency: 73.4162 },
+                    { id: 'G2', label: 'G', note: 'G2', frequency: 97.9989 },
+                ],
+            },
+            dropD: {
+                label: 'Drop D (D A D G)',
+                strings: [
+                    { id: 'D1', label: 'D', note: 'D1', frequency: 36.7081 },
                     { id: 'A1', label: 'A', note: 'A1', frequency: 55.0 },
                     { id: 'D2', label: 'D', note: 'D2', frequency: 73.4162 },
                     { id: 'G2', label: 'G', note: 'G2', frequency: 97.9989 },
