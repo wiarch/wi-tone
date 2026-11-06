@@ -35,16 +35,25 @@
                 <p data-tuner-cents class="text-xs text-slate-400">—</p>
             </div>
 
-            <div>
-                <p class="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">Modo silencioso / por oído</p>
-                <div class="grid grid-cols-6 gap-1.5">
-                    @foreach (['E', 'A', 'D', 'G', 'B', 'e'] as $string)
-                        <button
-                            type="button"
-                            data-tuner-string="{{ $string }}"
-                            class="rounded-lg border border-white/10 bg-white/5 py-2 font-mono text-xs text-violet-300 transition hover:border-violet-500/40 hover:bg-violet-600/20"
-                        >{{ $string }}</button>
-                    @endforeach
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label class="block text-xs text-slate-400">
+                        Instrumento
+                        <select data-tuner-instrument class="mt-1 w-full rounded-lg border border-white/10 bg-[#141c2e] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none">
+                            <option value="guitar">Guitarra</option>
+                            <option value="bass">Bajo</option>
+                        </select>
+                    </label>
+                    <label class="block text-xs text-slate-400">
+                        Afinación de referencia
+                        <select data-tuner-tuning class="mt-1 w-full rounded-lg border border-white/10 bg-[#141c2e] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none">
+                            <option value="standard">Estándar</option>
+                        </select>
+                    </label>
+                </div>
+                <div>
+                    <p class="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tonos de referencia por oído</p>
+                    <div data-tuner-strings class="grid grid-cols-4 gap-1.5 sm:grid-cols-6"></div>
                 </div>
             </div>
         </div>
