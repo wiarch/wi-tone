@@ -26,7 +26,9 @@ Do not introduce a frontend framework or major dependency without a clear archit
 ## Existing implementation
 
 - `resources/views/tools/tuner.blade.php`: tuner interface.
-- `resources/js/musician-tools.js`: current tuner, pitch detection, reference tones, metronome and circle-of-fifths logic.
+- `resources/js/musician-tools.js`: tuner UI/controller, reference tones, metronome and circle-of-fifths logic.
+- `resources/js/music/pitch-detection.js`: pure pitch math, normalized autocorrelation and instrument presets.
+- `tests/js/pitch-detection.test.js`: deterministic tests for note conversion, pitch detection and presets.
 - `resources/views/tools/metronome.blade.php`: metronome interface.
 - `routes/web.php`: current routes, including the tuner and metronome.
 - Existing song, chord, contact and service-plan modules are legacy scope. Do not delete or rewrite them as part of unrelated tuner work.
@@ -77,5 +79,6 @@ For each task:
 - `npm run build`
 - `php artisan test`
 - `vendor/bin/pint --test`
+- `npm run test:music`
 
 Follow the repository's actual scripts and dependency versions; do not assume a command succeeds without running it.
