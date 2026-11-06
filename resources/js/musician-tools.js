@@ -1,18 +1,8 @@
 /**
  * Herramientas del músico — afinador, metrónomo, círculo de quintas.
  */
-
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+import { NOTE_NAMES, INSTRUMENT_PRESETS, frequencyToNote, detectPitch, getTuningPreset } from './music/pitch-detection.js';
 const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-
-const GUITAR_STRINGS = {
-    E: 82.41,
-    A: 110.0,
-    D: 146.83,
-    G: 196.0,
-    B: 246.94,
-    e: 329.63,
-};
 
 const CIRCLE_KEYS = [
     { major: 'Do', majorEn: 'C', minor: 'Lam', minorEn: 'Am' },
@@ -42,88 +32,6 @@ function noteIndex(name) {
     return NOTE_NAMES_FLAT.indexOf(name);
 }
 
-function freqToNote(freq) {
-    if (!freq || freq < 20) {
-        return null;
-    }
-    const midi = 12 * Math.log2(freq / 440) + 69;
-    const rounded = Math.round(midi);
-    const cents = Math.round((midi - rounded) * 100);
-    const idx = ((rounded % 12) + 12) % 12;
-
-    return { note: NOTE_NAMES[idx], cents, freq };
-}
-
-function detectPitch(buffer, sampleRate) {
-    const size = buffer.length;
-    let rms = 0;
-
-    for (let i = 0; i < size; i++) {
-        rms += buffer[i] * buffer[i];
-    }
-    rms = Math.sqrt(rms / size);
-    if (rms < 0.008) {
-        return null;
-    }
-
-    let r1 = 0;
-    let r2 = size - 1;
-    const threshold = 0.15;
-
-    for (let i = 0; i < size / 2; i++) {
-        if (Math.abs(buffer[i]) < threshold) {
-            r1 = i;
-            break;
-        }
-    }
-    for (let i = 1; i < size / 2; i++) {
-        if (Math.abs(buffer[size - i]) < threshold) {
-            r2 = size - i;
-            break;
-        }
-    }
-
-    const trimmed = buffer.slice(r1, r2);
-    const len = trimmed.length;
-    const correlations = new Float32Array(len);
-
-    for (let lag = 0; lag < len; lag++) {
-        for (let i = 0; i < len - lag; i++) {
-            correlations[lag] += trimmed[i] * trimmed[i + lag];
-        }
-    }
-
-    let d = 0;
-    while (d < len - 1 && correlations[d] > correlations[d + 1]) {
-        d++;
-    }
-
-    let maxVal = -1;
-    let maxPos = -1;
-    for (let i = d; i < len; i++) {
-        if (correlations[i] > maxVal) {
-            maxVal = correlations[i];
-            maxPos = i;
-        }
-    }
-
-    if (maxPos <= 0) {
-        return null;
-    }
-
-    let T0 = maxPos;
-    const x1 = correlations[T0 - 1] ?? 0;
-    const x2 = correlations[T0];
-    const x3 = correlations[T0 + 1] ?? 0;
-    const a = (x1 + x3 - 2 * x2) / 2;
-    const b = (x3 - x1) / 2;
-    if (a) {
-        T0 -= b / (2 * a);
-    }
-
-    return sampleRate / T0;
-}
-
 function chordNameForDegree(rootIdx, interval, quality) {
     const note = NOTE_NAMES[(rootIdx + interval) % 12];
     if (quality === 'minor') {
@@ -150,9 +58,8 @@ function getScaleChords(rootEn) {
 
 function initTuner(root) {
     const tuner = root.querySelector('[data-tuner]');
-    if (!tuner) {
-        return;
-    }
+    if (!tuner || tuner.dataset.initialized === 'true') return;
+    tuner.dataset.initialized = 'true';
 
     const startBtn = tuner.querySelector('[data-tuner-mic-start]');
     const stopBtn = tuner.querySelector('[data-tuner-mic-stop]');
@@ -161,61 +68,108 @@ function initTuner(root) {
     const noteEl = tuner.querySelector('[data-tuner-note]');
     const freqEl = tuner.querySelector('[data-tuner-freq]');
     const centsEl = tuner.querySelector('[data-tuner-cents]');
+    const instrumentSelect = tuner.querySelector('[data-tuner-instrument]');
+    const tuningSelect = tuner.querySelector('[data-tuner-tuning]');
+    const stringsContainer = tuner.querySelector('[data-tuner-strings]');
 
     let audioCtx = null;
     let analyser = null;
+    let sourceNode = null;
     let mediaStream = null;
     let rafId = null;
     let earCtx = null;
+    let isStarting = false;
+    let lastAnalysisAt = 0;
+    let selectedInstrument = instrumentSelect?.value || 'guitar';
+    let selectedTuning = tuningSelect?.value || 'standard';
+
+    const needleBase = 'absolute bottom-2 left-1/2 h-[calc(100%-0.5rem)] w-0.5 origin-bottom -translate-x-1/2 rounded-full transition-transform duration-75';
 
     function getEarCtx() {
-        if (!earCtx) {
-            earCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error('Web Audio API no está disponible.');
+        if (!earCtx || earCtx.state === 'closed') earCtx = new AudioContextClass();
         return earCtx;
     }
 
     function playTone(freq, label) {
-        const ctx = getEarCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.5);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.5);
-        noteEl.textContent = label;
-        freqEl.textContent = `${freq.toFixed(1)} Hz`;
-        centsEl.textContent = 'Referencia por oído';
-        needle.style.transform = 'translateX(-50%) rotate(0deg)';
+        try {
+            const ctx = getEarCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.4);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 1.4);
+            noteEl.textContent = label;
+            freqEl.textContent = `${freq.toFixed(2)} Hz`;
+            centsEl.textContent = 'Tono de referencia';
+            centsEl.className = 'text-xs text-slate-400';
+            needle.style.transform = 'translateX(-50%) rotate(0deg)';
+        } catch {
+            statusEl.textContent = 'No se pudo reproducir el tono de referencia en este navegador.';
+        }
     }
 
-    function updateUI(detected) {
-        if (!detected) {
+    function renderStringButtons() {
+        if (!stringsContainer) return;
+        const preset = getTuningPreset(selectedInstrument, selectedTuning);
+        stringsContainer.replaceChildren();
+        if (!preset) return;
+
+        preset.strings.forEach((string) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.tunerString = string.id;
+            button.className = 'rounded-lg border border-white/10 bg-white/5 py-2 font-mono text-xs text-violet-300 transition hover:border-violet-500/40 hover:bg-violet-600/20';
+            button.textContent = string.label;
+            button.title = `${string.note} · ${string.frequency.toFixed(2)} Hz`;
+            button.setAttribute('aria-label', `Reproducir referencia ${string.note}`);
+            button.addEventListener('click', () => playTone(string.frequency, string.note));
+            stringsContainer.appendChild(button);
+        });
+    }
+
+    function renderTunings() {
+        if (!tuningSelect) return;
+        const tunings = INSTRUMENT_PRESETS[selectedInstrument]?.tunings ?? {};
+        tuningSelect.replaceChildren();
+        Object.entries(tunings).forEach(([id, tuning]) => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = tuning.label;
+            tuningSelect.appendChild(option);
+        });
+        selectedTuning = Object.hasOwn(tunings, selectedTuning) ? selectedTuning : Object.keys(tunings)[0];
+        tuningSelect.value = selectedTuning;
+        renderStringButtons();
+    }
+
+    function updateUI(result) {
+        if (!result) {
             noteEl.textContent = '—';
             freqEl.textContent = '0 Hz';
-            centsEl.textContent = 'Sin señal';
+            centsEl.textContent = 'Sin señal estable';
+            centsEl.className = 'text-xs text-slate-400';
             needle.style.transform = 'translateX(-50%) rotate(0deg)';
+            needle.className = `${needleBase} bg-violet-400`;
             return;
         }
 
-        const info = freqToNote(detected);
-        if (!info) {
-            return;
-        }
+        const info = frequencyToNote(result.frequency);
+        if (!info) return;
 
-        noteEl.textContent = info.note;
-        freqEl.textContent = `${detected.toFixed(1)} Hz`;
-
+        noteEl.textContent = `${info.note}${info.octave}`;
+        freqEl.textContent = `${result.frequency.toFixed(2)} Hz`;
         const cents = info.cents;
         const rotation = Math.max(-45, Math.min(45, cents * 0.9));
         needle.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
-
-        const needleBase = 'absolute bottom-2 left-1/2 h-[calc(100%-0.5rem)] w-0.5 origin-bottom -translate-x-1/2 rounded-full transition-transform duration-75';
 
         if (Math.abs(cents) <= 5) {
             centsEl.textContent = '✓ Afinado';
@@ -232,58 +186,105 @@ function initTuner(root) {
         }
     }
 
-    function tick() {
-        if (!analyser) {
-            return;
+    function tick(timestamp) {
+        if (!analyser || !audioCtx) return;
+        if (timestamp - lastAnalysisAt >= 50) {
+            lastAnalysisAt = timestamp;
+            const buffer = new Float32Array(analyser.fftSize);
+            analyser.getFloatTimeDomainData(buffer);
+            const minFrequency = selectedInstrument === 'bass' ? 35 : 60;
+            const result = detectPitch(buffer, audioCtx.sampleRate, { minFrequency, maxFrequency: 1000 });
+            updateUI(result);
         }
-        const buffer = new Float32Array(analyser.fftSize);
-        analyser.getFloatTimeDomainData(buffer);
-        updateUI(detectPitch(buffer, audioCtx.sampleRate));
         rafId = requestAnimationFrame(tick);
     }
 
     async function startMic() {
+        if (isStarting || mediaStream) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!navigator.mediaDevices?.getUserMedia || !AudioContextClass) {
+            statusEl.textContent = 'Este navegador no admite acceso al micrófono o Web Audio API. Usa los tonos de referencia.';
+            return;
+        }
+
+        isStarting = true;
+        startBtn.disabled = true;
+        statusEl.textContent = 'Solicitando permiso para usar el micrófono…';
+
         try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioCtx.createMediaStreamSource(mediaStream);
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                },
+            });
+            audioCtx = new AudioContextClass();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            sourceNode = audioCtx.createMediaStreamSource(mediaStream);
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048;
-            source.connect(analyser);
+            analyser.fftSize = 4096;
+            analyser.smoothingTimeConstant = 0;
+            sourceNode.connect(analyser);
+            lastAnalysisAt = 0;
             startBtn.classList.add('hidden');
             stopBtn.classList.remove('hidden');
-            statusEl.textContent = 'Escuchando… toca una cuerda cerca del micrófono.';
-            tick();
-        } catch {
-            statusEl.textContent = 'No se pudo acceder al micrófono. Usa el modo por oído.';
+            statusEl.textContent = 'Escuchando. Toca una sola cuerda cerca del micrófono.';
+            rafId = requestAnimationFrame(tick);
+        } catch (error) {
+            mediaStream?.getTracks().forEach((track) => track.stop());
+            mediaStream = null;
+            sourceNode?.disconnect();
+            sourceNode = null;
+            analyser = null;
+            if (audioCtx && audioCtx.state !== 'closed') await audioCtx.close();
+            audioCtx = null;
+
+            const messages = {
+                NotAllowedError: 'Permiso de micrófono denegado. Habilítalo en el navegador o usa los tonos de referencia.',
+                NotFoundError: 'No se encontró un micrófono conectado.',
+                NotReadableError: 'El micrófono está siendo utilizado por otra aplicación.',
+                SecurityError: 'El navegador bloqueó el micrófono. Comprueba que estás usando HTTPS o localhost.',
+            };
+            statusEl.textContent = messages[error?.name] || 'No se pudo iniciar el micrófono. Usa el modo por oído.';
+        } finally {
+            isStarting = false;
+            startBtn.disabled = false;
         }
     }
 
-    function stopMic() {
-        if (rafId) {
+    async function stopMic() {
+        if (rafId !== null) {
             cancelAnimationFrame(rafId);
             rafId = null;
         }
-        mediaStream?.getTracks().forEach((t) => t.stop());
+        mediaStream?.getTracks().forEach((track) => track.stop());
         mediaStream = null;
-        audioCtx?.close();
-        audioCtx = null;
+        sourceNode?.disconnect();
+        sourceNode = null;
         analyser = null;
+        if (audioCtx && audioCtx.state !== 'closed') await audioCtx.close();
+        audioCtx = null;
         startBtn.classList.remove('hidden');
         stopBtn.classList.add('hidden');
         statusEl.textContent = 'Micrófono detenido.';
         updateUI(null);
     }
 
+    instrumentSelect?.addEventListener('change', () => {
+        selectedInstrument = instrumentSelect.value;
+        selectedTuning = 'standard';
+        renderTunings();
+        updateUI(null);
+    });
+    tuningSelect?.addEventListener('change', () => {
+        selectedTuning = tuningSelect.value;
+        renderStringButtons();
+    });
     startBtn?.addEventListener('click', startMic);
     stopBtn?.addEventListener('click', stopMic);
 
-    tuner.querySelectorAll('[data-tuner-string]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const label = btn.dataset.tunerString;
-            playTone(GUITAR_STRINGS[label], label);
-        });
-    });
+    renderTunings();
 }
 
 function initMetronome(root) {
