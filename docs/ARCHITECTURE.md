@@ -12,7 +12,7 @@ WI Tone is a Laravel application with server-rendered Blade views and browser-si
 - **Current audio/tool logic:** `resources/js/musician-tools.js`.
 - **Current routes:** `routes/web.php`, including `tools.tuner` and `tools.metronome`.
 
-The tuner currently obtains a microphone MediaStream, connects it to an AnalyserNode, reads time-domain samples and estimates a frequency. It converts the detected frequency into a note and cents deviation. Reference tones are generated with an OscillatorNode.
+The tuner obtains a microphone MediaStream, connects it to an AnalyserNode and estimates the fundamental frequency with a YIN-style difference function. The detector returns frequency, RMS level and a clarity estimate. The tuning module maps frequencies to equal-tempered notes and exposes data-driven standard guitar and bass presets. Reference tones are generated with an OscillatorNode.
 
 ## 2. Proposed logical boundaries
 
@@ -42,7 +42,7 @@ These are proposed boundaries, not a statement that these files already exist. I
 8. UI displays note, frequency, cents and a stable tuning state.
 9. User stops the tuner; tracks, animation frames and audio resources are released.
 
-The current implementation covers a basic form of this flow. Confidence scoring, robust low-frequency handling, stable-state filtering and configurable reference pitch are planned improvements.
+The current implementation covers the initial flow and uses an 8192-sample analyser window, decimated input and a YIN-style estimator. The clarity metric is available to the UI layer, but additional confidence gating, stable-state filtering, configurable reference pitch and real-device validation remain planned.
 
 ## 4. Tuning data model
 

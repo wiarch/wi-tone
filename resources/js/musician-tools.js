@@ -2,17 +2,10 @@
  * Herramientas del músico — afinador, metrónomo, círculo de quintas.
  */
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+import { detectPitch } from './music/pitch-detection.js';
+import { NOTE_NAMES, freqToNote, getInstrumentPreset, noteToFrequency } from './music/tuning.js';
 
-const GUITAR_STRINGS = {
-    E: 82.41,
-    A: 110.0,
-    D: 146.83,
-    G: 196.0,
-    B: 246.94,
-    e: 329.63,
-};
+const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 const CIRCLE_KEYS = [
     { major: 'Do', majorEn: 'C', minor: 'Lam', minorEn: 'Am' },
@@ -40,88 +33,6 @@ function noteIndex(name) {
         return idx;
     }
     return NOTE_NAMES_FLAT.indexOf(name);
-}
-
-function freqToNote(freq) {
-    if (!freq || freq < 20) {
-        return null;
-    }
-    const midi = 12 * Math.log2(freq / 440) + 69;
-    const rounded = Math.round(midi);
-    const cents = Math.round((midi - rounded) * 100);
-    const idx = ((rounded % 12) + 12) % 12;
-
-    return { note: NOTE_NAMES[idx], cents, freq };
-}
-
-function detectPitch(buffer, sampleRate) {
-    const size = buffer.length;
-    let rms = 0;
-
-    for (let i = 0; i < size; i++) {
-        rms += buffer[i] * buffer[i];
-    }
-    rms = Math.sqrt(rms / size);
-    if (rms < 0.008) {
-        return null;
-    }
-
-    let r1 = 0;
-    let r2 = size - 1;
-    const threshold = 0.15;
-
-    for (let i = 0; i < size / 2; i++) {
-        if (Math.abs(buffer[i]) < threshold) {
-            r1 = i;
-            break;
-        }
-    }
-    for (let i = 1; i < size / 2; i++) {
-        if (Math.abs(buffer[size - i]) < threshold) {
-            r2 = size - i;
-            break;
-        }
-    }
-
-    const trimmed = buffer.slice(r1, r2);
-    const len = trimmed.length;
-    const correlations = new Float32Array(len);
-
-    for (let lag = 0; lag < len; lag++) {
-        for (let i = 0; i < len - lag; i++) {
-            correlations[lag] += trimmed[i] * trimmed[i + lag];
-        }
-    }
-
-    let d = 0;
-    while (d < len - 1 && correlations[d] > correlations[d + 1]) {
-        d++;
-    }
-
-    let maxVal = -1;
-    let maxPos = -1;
-    for (let i = d; i < len; i++) {
-        if (correlations[i] > maxVal) {
-            maxVal = correlations[i];
-            maxPos = i;
-        }
-    }
-
-    if (maxPos <= 0) {
-        return null;
-    }
-
-    let T0 = maxPos;
-    const x1 = correlations[T0 - 1] ?? 0;
-    const x2 = correlations[T0];
-    const x3 = correlations[T0 + 1] ?? 0;
-    const a = (x1 + x3 - 2 * x2) / 2;
-    const b = (x3 - x1) / 2;
-    if (a) {
-        T0 -= b / (2 * a);
-    }
-
-    return sampleRate / T0;
 }
 
 function chordNameForDegree(rootIdx, interval, quality) {
@@ -161,6 +72,8 @@ function initTuner(root) {
     const noteEl = tuner.querySelector('[data-tuner-note]');
     const freqEl = tuner.querySelector('[data-tuner-freq]');
     const centsEl = tuner.querySelector('[data-tuner-cents]');
+    const instrumentSelect = tuner.querySelector('[data-tuner-instrument]');
+    const stringsContainer = tuner.querySelector('[data-tuner-strings]');
 
     let audioCtx = null;
     let analyser = null;
@@ -203,13 +116,13 @@ function initTuner(root) {
             return;
         }
 
-        const info = freqToNote(detected);
+        const info = freqToNote(detected.frequency);
         if (!info) {
             return;
         }
 
-        noteEl.textContent = info.note;
-        freqEl.textContent = `${detected.toFixed(1)} Hz`;
+        noteEl.textContent = `${info.note}${info.octave}`;
+        freqEl.textContent = `${detected.frequency.toFixed(1)} Hz`;
 
         const cents = info.cents;
         const rotation = Math.max(-45, Math.min(45, cents * 0.9));
@@ -248,14 +161,22 @@ function initTuner(root) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioCtx.createMediaStreamSource(mediaStream);
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048;
+            analyser.fftSize = 8192;
             source.connect(analyser);
             startBtn.classList.add('hidden');
             stopBtn.classList.remove('hidden');
             statusEl.textContent = 'Escuchando… toca una cuerda cerca del micrófono.';
             tick();
-        } catch {
-            statusEl.textContent = 'No se pudo acceder al micrófono. Usa el modo por oído.';
+        } catch (error) {
+            mediaStream?.getTracks().forEach((track) => track.stop());
+            mediaStream = null;
+            audioCtx?.close();
+            audioCtx = null;
+            analyser = null;
+            const message = error?.name === 'NotAllowedError'
+                ? 'Permiso de micrófono denegado. Puedes usar el modo por oído.'
+                : 'No se pudo iniciar el micrófono. Comprueba el dispositivo y usa el modo por oído.';
+            statusEl.textContent = message;
         }
     }
 
@@ -278,12 +199,29 @@ function initTuner(root) {
     startBtn?.addEventListener('click', startMic);
     stopBtn?.addEventListener('click', stopMic);
 
-    tuner.querySelectorAll('[data-tuner-string]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const label = btn.dataset.tunerString;
-            playTone(GUITAR_STRINGS[label], label);
+    function renderReferenceStrings() {
+        if (!stringsContainer) return;
+
+        const preset = getInstrumentPreset(instrumentSelect?.value ?? 'guitar');
+        const tuning = preset.tunings[0];
+        stringsContainer.replaceChildren();
+
+        tuning.strings.forEach((string) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.tunerString = string.label;
+            button.className = 'rounded-lg border border-white/10 bg-white/5 py-2 font-mono text-xs text-violet-300 transition hover:border-violet-500/40 hover:bg-violet-600/20';
+            button.textContent = string.label;
+            button.title = `Reproducir referencia ${string.note}${string.octave}`;
+            button.addEventListener('click', () => {
+                playTone(noteToFrequency(string.note, string.octave), `${string.note}${string.octave}`);
+            });
+            stringsContainer.appendChild(button);
         });
-    });
+    }
+
+    instrumentSelect?.addEventListener('change', renderReferenceStrings);
+    renderReferenceStrings();
 }
 
 function initMetronome(root) {
