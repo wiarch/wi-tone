@@ -8,21 +8,21 @@ WI Tone es una plataforma de herramientas musicales centrada en la afinación de
 
 ## Enfoque del producto
 
-La experiencia principal será un afinador cromático con detección de frecuencia mediante micrófono, indicación visual de desviación en cents y soporte para distintas afinaciones e instrumentos.
+La experiencia principal es un afinador cromático con detección de frecuencia mediante micrófono, indicación visual de desviación en cents y presets de referencia estándar para guitarra y bajo. El motor de detección y la lógica musical están separados en módulos JavaScript testeables.
 
 ### Funcionalidades existentes
 
 - Afinador cromático en navegador mediante Web Audio API.
 - Detección de frecuencia y nota aproximada.
 - Indicador visual de desviación respecto a la nota objetivo.
-- Reproducción de tonos de referencia para afinar por oído.
+- Reproducción de tonos de referencia para afinar por oído, con selección de guitarra o bajo y afinación estándar.
 - Metrónomo con tempo ajustable y compases 4/4, 3/4 y 6/8.
 - Círculo de quintas y utilidades de teoría musical.
 - Aplicación web construida con Laravel, Blade, JavaScript y Vite.
 
 ### Dirección del producto
 
-- Afinaciones estándar y alternativas para guitarra y bajo.
+- Presets estándar de guitarra de seis cuerdas y bajo de cuatro cuerdas; afinaciones alternativas previstas para próximas fases.
 - Selector de instrumento, afinación y referencia de frecuencia (A4).
 - Indicador de aguja y estado visual: bemol, afinado o sostenido.
 - Calibración y controles de sensibilidad para distintos entornos.
