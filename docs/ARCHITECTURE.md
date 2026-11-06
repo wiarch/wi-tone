@@ -30,7 +30,7 @@ As the tuner grows, split the current combined JavaScript module into focused un
 - `metronome`: metronome scheduling and UI.
 - `theory`: circle-of-fifths and related reference tools.
 
-These are proposed boundaries, not a statement that these files already exist. Introduce them incrementally and keep the current routes and views working during the transition.
+The pitch and preset module is already implemented at `resources/js/music/pitch-detection.js`. The remaining boundaries are proposed future extractions. Introduce them incrementally and keep the current routes and views working during the transition.
 
 ## 3. Audio processing flow
 
