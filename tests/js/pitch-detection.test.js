@@ -60,6 +60,8 @@ test('provides standard guitar and bass tuning reference data', () => {
     assert.equal(bass.strings.length, 4);
     assert.equal(guitar.strings[0].note, 'E2');
     assert.equal(bass.strings[0].note, 'E1');
+    assert.equal(getTuningPreset('guitar', 'dropD').strings[0].note, 'D2');
+    assert.equal(getTuningPreset('bass', 'dropD').strings[0].note, 'D1');
     assert.equal(getTuningPreset('ukulele', 'standard'), null);
     assert.deepEqual(Object.keys(INSTRUMENT_PRESETS), ['guitar', 'bass']);
 });
