@@ -13,8 +13,11 @@ La experiencia principal será un afinador cromático con detección de frecuenc
 ### Funcionalidades existentes
 
 - Afinador cromático en navegador mediante Web Audio API.
-- Detección de frecuencia y nota aproximada.
-- Indicador visual de desviación respecto a la nota objetivo.
+- Detección de frecuencia mediante autocorrelación normalizada y estimación de calidad de señal.
+- Conversión de frecuencia a nota, octava y desviación en cents.
+- Selector de guitarra y bajo con afinaciones estándar y Drop D.
+- Tonos de referencia por cuerda para los presets disponibles.
+- Indicador visual de desviación respecto a la nota cromática más cercana.
 - Reproducción de tonos de referencia para afinar por oído.
 - Metrónomo con tempo ajustable y compases 4/4, 3/4 y 6/8.
 - Círculo de quintas y utilidades de teoría musical.
@@ -75,6 +78,12 @@ php artisan migrate
 npm install
 npm run build
 ```
+
+Pruebas del motor musical:
+
+\`\`\`bash
+npm run test:music
+\`\`\`
 
 Inicia el entorno de desarrollo:
 
