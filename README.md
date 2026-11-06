@@ -1,6 +1,6 @@
 # WI Tone
 
-**Afinador musical digital, preciso y accesible desde el navegador.**
+**Afinador musical digital para guitarra, bajo y más instrumentos.**
 
 WI Tone es una plataforma de herramientas musicales centrada en la afinación de instrumentos. Su objetivo es ofrecer una experiencia sencilla y fiable para afinar guitarra, bajo y otros instrumentos, directamente desde el navegador y con una arquitectura preparada para futuras experiencias de escritorio y móviles.
 
