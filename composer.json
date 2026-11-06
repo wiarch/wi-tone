@@ -1,9 +1,18 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "wiarch/wi-tone",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Browser-based digital instrument tuner and music practice tools.",
+    "keywords": [
+        "wi-tone",
+        "instrument-tuner",
+        "chromatic-tuner",
+        "guitar-tuner",
+        "bass-tuner",
+        "music-tools",
+        "web-audio",
+        "laravel"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
