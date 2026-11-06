@@ -28,7 +28,8 @@ Do not introduce a frontend framework or major dependency without a clear archit
 - `resources/views/tools/tuner.blade.php`: tuner interface.
 - `resources/js/musician-tools.js`: tuner UI integration, reference tones, metronome and circle-of-fifths logic.
 - `resources/js/music/pitch-detection.js`: YIN-style fundamental-frequency estimator.
-- `resources/js/music/tuning.js`: note/frequency calculations and instrument presets.
+- `resources/js/music/tuning.js`: note/frequency calculations and standard/Drop D instrument presets.
+- `tests/js/tuning.test.js`: unit tests for note math, frequency conversion and tuning presets.
 - `resources/views/tools/metronome.blade.php`: metronome interface.
 - `routes/web.php`: current routes, including the tuner and metronome.
 - Existing song, chord, contact and service-plan modules are legacy scope. Do not delete or rewrite them as part of unrelated tuner work.

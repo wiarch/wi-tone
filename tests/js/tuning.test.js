@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { centsBetween, freqToNote, getInstrumentPreset, noteToFrequency } from '../../resources/js/music/tuning.js';
+import { centsBetween, freqToNote, getInstrumentPreset, getTuningPreset, noteToFrequency } from '../../resources/js/music/tuning.js';
 
 test('converts A4 reference frequency to A4', () => {
     const result = freqToNote(440);
@@ -30,4 +30,14 @@ test('rejects invalid frequency and note inputs', () => {
     assert.equal(freqToNote(0), null);
     assert.equal(noteToFrequency('H', 4), null);
     assert.equal(centsBetween(-1, 440), null);
+});
+
+test('provides standard and Drop D tunings for guitar and bass', () => {
+    assert.deepEqual(getTuningPreset('guitar', 'drop-d').strings.map(s => s.note + s.octave), ['D2', 'A2', 'D3', 'G3', 'B3', 'E4']);
+    assert.deepEqual(getTuningPreset('bass', 'drop-d').strings.map(s => s.note + s.octave), ['D1', 'A1', 'D2', 'G2']);
+});
+
+test('supports a custom A4 reference pitch', () => {
+    assert.equal(freqToNote(442, 442).note, 'A');
+    assert.ok(Math.abs(noteToFrequency('A', 4, 442) - 442) < 0.001);
 });

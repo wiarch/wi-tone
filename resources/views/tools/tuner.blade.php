@@ -14,13 +14,21 @@
                 <button type="button" data-tuner-mic-start class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500">Activar micrófono</button>
                 <button type="button" data-tuner-mic-stop class="hidden rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5">Detener</button>
             </div>
-            <label class="flex items-center gap-2 text-xs text-slate-400">
-                Instrumento
-                <select data-tuner-instrument class="rounded-lg border border-white/10 bg-[#141c2e] px-2 py-1.5 text-xs text-white">
-                    <option value="guitar">Guitarra</option>
-                    <option value="bass">Bajo</option>
-                </select>
-            </label>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label class="block text-xs text-slate-400">
+                    Instrumento
+                    <select data-tuner-instrument class="mt-1 w-full rounded-lg border border-white/10 bg-[#141c2e] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none">
+                        <option value="guitar">Guitarra</option>
+                        <option value="bass">Bajo</option>
+                    </select>
+                </label>
+                <label class="block text-xs text-slate-400">
+                    Afinación de referencia
+                    <select data-tuner-tuning class="mt-1 w-full rounded-lg border border-white/10 bg-[#141c2e] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none">
+                        <option value="standard">Estándar</option>
+                    </select>
+                </label>
+            </div>
             <p data-tuner-status class="text-xs text-slate-500">Modo micrófono: detecta la frecuencia en tiempo real.</p>
 
             <div class="relative mx-auto max-w-[260px]">

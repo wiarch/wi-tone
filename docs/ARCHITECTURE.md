@@ -9,10 +9,12 @@ WI Tone is a Laravel application with server-rendered Blade views and browser-si
 - **Frontend build:** Vite.
 - **Audio:** browser Web Audio API and MediaDevices API.
 - **Current tuner entry point:** `resources/views/tools/tuner.blade.php`.
-- **Current audio/tool logic:** `resources/js/musician-tools.js`.
+- **Current audio/tool UI logic:** `resources/js/musician-tools.js`.
+- **Pitch detection:** `resources/js/music/pitch-detection.js`.
+- **Note math and presets:** `resources/js/music/tuning.js`.
 - **Current routes:** `routes/web.php`, including `tools.tuner` and `tools.metronome`.
 
-The tuner obtains a microphone MediaStream, connects it to an AnalyserNode and estimates the fundamental frequency with a YIN-style difference function. The detector returns frequency, RMS level and a clarity estimate. The tuning module maps frequencies to equal-tempered notes and exposes data-driven standard guitar and bass presets. Reference tones are generated with an OscillatorNode.
+The tuner obtains a microphone MediaStream, connects it to an AnalyserNode and estimates the fundamental frequency with a bounded YIN-style difference function over a decimated sample buffer. The detector returns frequency, RMS level and a clarity estimate. The tuning module maps frequencies to equal-tempered notes and exposes data-driven standard and Drop D guitar/bass presets. Reference tones are generated with an OscillatorNode.
 
 ## 2. Proposed logical boundaries
 
@@ -28,7 +30,7 @@ As the tuner grows, split the current combined JavaScript module into focused un
 - `metronome`: metronome scheduling and UI.
 - `theory`: circle-of-fifths and related reference tools.
 
-These are proposed boundaries, not a statement that these files already exist. Introduce them incrementally and keep the current routes and views working during the transition.
+The pitch detector and tuning math/preset modules already exist at `resources/js/music/`. The remaining boundaries are proposed future extractions. Introduce them incrementally and keep the current routes and views working during the transition.
 
 ## 3. Audio processing flow
 
@@ -42,7 +44,7 @@ These are proposed boundaries, not a statement that these files already exist. I
 8. UI displays note, frequency, cents and a stable tuning state.
 9. User stops the tuner; tracks, animation frames and audio resources are released.
 
-The current implementation covers the initial flow and uses an 8192-sample analyser window, decimated input and a YIN-style estimator. The clarity metric is available to the UI layer, but additional confidence gating, stable-state filtering, configurable reference pitch and real-device validation remain planned.
+The current implementation covers the initial flow and uses an 8192-sample analyser window, decimated input and a YIN-style estimator. Microphone tracks and audio nodes are released when stopped or when the page is hidden. Instrument and tuning selectors drive the reference-tone buttons. Temporal stability filtering, applying the selected string as the live tuner target, configurable A4 and real-device validation remain planned.
 
 ## 4. Tuning data model
 

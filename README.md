@@ -1,6 +1,6 @@
 # WI Tone
 
-**Afinador musical digital, preciso y accesible desde el navegador.**
+**Afinador musical digital para guitarra y bajo, accesible desde el navegador.**
 
 WI Tone es una plataforma de herramientas musicales centrada en la afinación de instrumentos. Su objetivo es ofrecer una experiencia sencilla y fiable para afinar guitarra, bajo y otros instrumentos, directamente desde el navegador y con una arquitectura preparada para futuras experiencias de escritorio y móviles.
 
@@ -8,21 +8,22 @@ WI Tone es una plataforma de herramientas musicales centrada en la afinación de
 
 ## Enfoque del producto
 
-La experiencia principal es un afinador cromático con detección de frecuencia mediante micrófono, indicación visual de desviación en cents y presets de referencia estándar para guitarra y bajo. El motor de detección y la lógica musical están separados en módulos JavaScript testeables.
+La experiencia principal es un afinador cromático con detección de frecuencia mediante micrófono, indicación visual de desviación en cents y presets de referencia estándar y Drop D para guitarra y bajo. El motor de detección y la lógica musical están separados en módulos JavaScript testeables.
 
 ### Funcionalidades existentes
 
 - Afinador cromático en navegador mediante Web Audio API.
-- Detección de frecuencia y nota aproximada.
-- Indicador visual de desviación respecto a la nota objetivo.
-- Reproducción de tonos de referencia para afinar por oído, con selección de guitarra o bajo y afinación estándar.
+- Detección de frecuencia mediante un estimador YIN-style con análisis acotado y decimado.
+- Conversión de frecuencia a nota, octava y desviación en cents.
+- Selector de guitarra y bajo con afinaciones estándar y Drop D.
+- Tonos de referencia generados desde los datos del preset seleccionado.
 - Metrónomo con tempo ajustable y compases 4/4, 3/4 y 6/8.
 - Círculo de quintas y utilidades de teoría musical.
 - Aplicación web construida con Laravel, Blade, JavaScript y Vite.
 
 ### Dirección del producto
 
-- Presets estándar de guitarra de seis cuerdas y bajo de cuatro cuerdas; afinaciones alternativas previstas para próximas fases.
+- Ampliar el catálogo de afinaciones de guitarra y bajo más allá de estándar y Drop D.
 - Selector de instrumento, afinación y referencia de frecuencia (A4).
 - Indicador de aguja y estado visual: bemol, afinado o sostenido.
 - Calibración y controles de sensibilidad para distintos entornos.
@@ -73,6 +74,7 @@ Asegúrate de que `.env` tenga `DB_CONNECTION=sqlite` y que la ruta de la base d
 ```bash
 php artisan migrate
 npm install
+npm test
 npm run build
 ```
 

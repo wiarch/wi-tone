@@ -42,10 +42,11 @@ A metronome and selected theory/reference utilities complement the tuner without
 ## 5. Scope
 
 ### Existing capabilities in the repository
-- Basic chromatic pitch detection through Web Audio API.
-- Note and frequency display.
-- Cents deviation and a visual needle.
-- Manual reference tones for standard guitar strings.
+- Chromatic pitch detection through Web Audio API using a bounded YIN-style estimator.
+- Frequency, note, octave and cents deviation display.
+- Instrument selector for guitar and bass.
+- Standard and Drop D reference presets for guitar and bass.
+- Reference tones generated from the selected preset.
 - Metronome with adjustable tempo and selected time signatures.
 - Circle-of-fifths utility.
 - Laravel authentication and account scaffolding.
@@ -54,7 +55,7 @@ A metronome and selected theory/reference utilities complement the tuner without
 ### Core product scope to build
 - Robust chromatic tuner.
 - Instrument selector and data-driven tuning presets.
-- Standard guitar and bass presets.
+- Standard and Drop D guitar and bass presets.
 - Configurable reference pitch.
 - Stable visual tuning states and confidence handling.
 - Better low-frequency detection for bass.
@@ -62,7 +63,7 @@ A metronome and selected theory/reference utilities complement the tuner without
 - Automated tests for audio math and tuning data.
 
 ### Later scope
-- Alternative tunings and custom tuning profiles.
+- Additional alternative tunings and custom tuning profiles.
 - Additional instruments such as ukulele and violin.
 - PWA installation and offline-capable application shell.
 - Desktop and mobile wrappers if product validation justifies them.
