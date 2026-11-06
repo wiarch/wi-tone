@@ -9,10 +9,12 @@ WI Tone is a Laravel application with server-rendered Blade views and browser-si
 - **Frontend build:** Vite.
 - **Audio:** browser Web Audio API and MediaDevices API.
 - **Current tuner entry point:** `resources/views/tools/tuner.blade.php`.
-- **Current audio/tool logic:** `resources/js/musician-tools.js`.
+- **Current audio/tool UI logic:** `resources/js/musician-tools.js`.
+- **Pitch and preset engine:** `resources/js/music/pitch-detection.js`.
+- **Pitch engine tests:** `tests/js/pitch-detection.test.js`.
 - **Current routes:** `routes/web.php`, including `tools.tuner` and `tools.metronome`.
 
-The tuner currently obtains a microphone MediaStream, connects it to an AnalyserNode, reads time-domain samples and estimates a frequency. It converts the detected frequency into a note and cents deviation. Reference tones are generated with an OscillatorNode.
+The tuner obtains a microphone MediaStream, connects it to an AnalyserNode and analyzes a downsampled time-domain buffer. The pitch module applies normalized autocorrelation, rejects low-energy or low-confidence signals, refines the detected period and returns frequency, confidence and RMS. The note conversion module maps frequency to note, octave and cents deviation. Reference tones are generated with an OscillatorNode. Guitar and bass presets currently provide standard and Drop D reference frequencies.
 
 ## 2. Proposed logical boundaries
 
@@ -42,7 +44,7 @@ These are proposed boundaries, not a statement that these files already exist. I
 8. UI displays note, frequency, cents and a stable tuning state.
 9. User stops the tuner; tracks, animation frames and audio resources are released.
 
-The current implementation covers a basic form of this flow. Confidence scoring, robust low-frequency handling, stable-state filtering and configurable reference pitch are planned improvements.
+The current implementation includes a confidence threshold and low-frequency support for bass presets. More advanced harmonic rejection, temporal stability filtering, configurable reference pitch and real-device validation remain planned improvements.
 
 ## 4. Tuning data model
 
@@ -82,9 +84,9 @@ The current Laravel application also contains song, chord, category, contact and
 
 ## 8. Testing strategy
 
-- Unit tests for frequency-to-note conversion and cents calculation.
-- Unit tests for preset shape, ordering and target frequencies.
-- Deterministic pitch detector tests using generated sample buffers at known frequencies.
+- Node test-runner tests for frequency-to-note conversion and cents calculation.
+- Tests for standard and Drop D guitar/bass preset shape and target frequencies.
+- Deterministic pitch detector tests using generated sample buffers at known guitar and bass frequencies.
 - Edge cases: silence, noise, weak signals, harmonics, low-frequency bass notes and out-of-range inputs.
 - Browser tests for permission denial, start/stop lifecycle and responsive UI.
 - Laravel feature tests for routes and any server-side preferences added later.
