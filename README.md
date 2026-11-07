@@ -112,4 +112,8 @@ El código actual también incluye gestión de canciones, acordes, contactos y p
 
 ## Licencia
 
-Este proyecto se distribuye bajo la licencia indicada en el archivo [LICENSE](LICENSE), si está presente en el repositorio.
+Este proyecto se distribuye bajo la [licencia MIT](LICENSE).
+
+---
+
+Parte del ecosistema **[WI Arch](https://github.com/wiarch)**.
